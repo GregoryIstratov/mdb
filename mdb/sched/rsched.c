@@ -31,6 +31,8 @@ struct rsched_worker_info
 struct _rsched
 {
     rsched_task* task_queue;
+    uint32_t     queue_len;
+
     __atomic uint32_t cur_task;
     uint32_t queue_top;
     __atomic uint32_t queue_bot;
@@ -52,12 +54,10 @@ static void* rsched_worker(void* arg);
 static bool rsched_check_workers_state(rsched* sched, int state);
 static void rsched_set_workers_state(rsched* sched, int state);
 
-void rsched_create(rsched** psched, uint32_t queue_len, uint32_t workers)
+void rsched_create(rsched** psched, uint32_t workers)
 {
     *psched = (rsched*)calloc(1, sizeof(rsched));
     rsched* sched = *psched;
-
-    sched->task_queue = (rsched_task*)calloc(queue_len, sizeof(rsched_task));
 
     atomic_store(&sched->cur_task, 0);
 
@@ -154,16 +154,44 @@ void rsched_requeue(rsched* sched)
     atomic_store(&sched->cur_task, 0);
 }
 
-
-void rsched_queue_resize(rsched* sched, uint32_t queue_len)
+enum
 {
-    free(sched->task_queue);
+    RSCHED_QUEUE_RESIZE_DISCARD = 1,
+    RSCHED_QUEUE_RESIZE_EXTEND  = 1<<1,
+    RSCHED_QUEUE_RESIZE_ZERO    = 1<<2
+};
 
-    sched->task_queue = (rsched_task*)calloc(queue_len, sizeof(rsched_task));
+static void rsched_queue_resize(rsched* sched, uint32_t queue_len, int flags)
+{
+    if(flags & RSCHED_QUEUE_RESIZE_DISCARD && !(flags & RSCHED_QUEUE_RESIZE_EXTEND))
+    {
+        free(sched->task_queue);
 
-    atomic_store(&sched->cur_task, 0);
+        sched->task_queue = (rsched_task*) calloc(queue_len, sizeof(rsched_task));
+        sched->queue_len = queue_len;
 
-    sched->queue_top = 0;
+        atomic_store(&sched->cur_task, 0);
+
+        sched->queue_top = 0;
+    }
+    else if(flags & RSCHED_QUEUE_RESIZE_EXTEND && !(flags & RSCHED_QUEUE_RESIZE_DISCARD))
+    {
+        uint32_t qlen = sched->queue_len + queue_len;
+        sched->task_queue = (rsched_task*) realloc(sched->task_queue, qlen * sizeof(rsched_task));
+
+        if(flags & RSCHED_QUEUE_RESIZE_ZERO)
+        {
+            memset(sched->task_queue+sched->queue_len, 0, queue_len * sizeof(rsched_task));
+        }
+
+        sched->queue_len = qlen;
+
+    }
+    else
+    {
+        fprintf(stderr, "[rsched_queue_resize] unknown flags\n");
+        exit(EXIT_FAILURE);
+    }
 }
 
 
@@ -237,6 +265,16 @@ void rsched_yield(rsched* sched, uint32_t caller)
 
 void rsched_push(rsched* sched, uint32_t x0, uint32_t x1, uint32_t y0, uint32_t y1)
 {
+    if(sched->queue_top >= sched->queue_len)
+    {
+        uint32_t ext_len = sched->queue_len / 4;
+        fprintf(stderr, "[rsched_push] attempt to bad access, element {%i, %i, %i, %i}. Extending queue [%i]->[%i]\n",
+                x0, x1, y0, y1,
+                sched->queue_len, sched->queue_len + ext_len);
+
+        rsched_queue_resize(sched, ext_len, RSCHED_QUEUE_RESIZE_EXTEND | RSCHED_QUEUE_RESIZE_ZERO);
+    }
+
     rsched_task* t = &sched->task_queue[sched->queue_top++];
     t->x0 = x0;
     t->x1 = x1;
@@ -276,12 +314,12 @@ uint32_t rsched_enqueued_tasks(rsched* sched)
 //    LOG_DEBUG("Processed tasks", "%u", processed_tasks);
 //}
 
-void rsched_split_task(rsched* sched, uint32_t x0, uint32_t x1, uint32_t y0, uint32_t y1, uint32_t grain)
+static void rsched_split_task(rsched* sched, uint32_t x0, uint32_t x1, uint32_t y0, uint32_t y1, struct block_size* grain)
 {
     uint32_t xsz = x1 - x0 + 1;
     uint32_t ysz = y1 - y0 + 1;
 
-    if(xsz > grain)
+    if(xsz > grain->x)
     {
         uint32_t nxm = xsz / 2;
         uint32_t nx01 = x0 + (nxm - 1);
@@ -290,7 +328,7 @@ void rsched_split_task(rsched* sched, uint32_t x0, uint32_t x1, uint32_t y0, uin
         rsched_split_task(sched, x0, nx01, y0, y1, grain);
         rsched_split_task(sched, nx10, x1, y0, y1, grain);
     }
-    else if(ysz > grain)
+    else if(ysz > grain->y)
     {
         uint32_t nym = ysz / 2;
         uint32_t ny01 = y0 + (nym - 1);
@@ -310,6 +348,17 @@ void rsched_split_task(rsched* sched, uint32_t x0, uint32_t x1, uint32_t y0, uin
     }
 }
 
+void rsched_create_tasks(rsched* sched, uint32_t width, uint32_t height, struct block_size* grain)
+{
+    uint32_t wxh = width * height;
+    uint32_t grain2 = grain->x * grain->y;
+    uint32_t qlen = wxh / grain2 + (wxh % grain2 != 0);
+
+    rsched_queue_resize(sched, qlen, RSCHED_QUEUE_RESIZE_DISCARD | RSCHED_QUEUE_RESIZE_ZERO);
+
+    rsched_split_task(sched, 0, width-1, 0, height-1, grain);
+}
+
 
 static void* rsched_worker(void* arg)
 {
@@ -321,9 +370,9 @@ static void* rsched_worker(void* arg)
     {
         rsched_task* t = rsched_pop(sched);
 
-        if (t)
+        if (likely(t))
         {
-            if(sched->r_fun == NULL)
+            if(unlikely(sched->r_fun == NULL))
             {
                 LOG_ERROR("[rsched_worker] processor function is not set\n");
                 exit(EXIT_FAILURE);

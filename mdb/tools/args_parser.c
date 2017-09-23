@@ -53,7 +53,7 @@
 #include <stdlib.h>
 #include <argp.h>
 #include <string.h>
-#include <mdb/kernel/kernel_cpu.h>
+#include <mdb/kernel/mdb_kernel.h>
 
 const char* argp_program_version =
         "mandelbrot 1.0";
@@ -89,12 +89,12 @@ static struct argp_option options[] = {
         {"quad",        'x', "SIZE", 0, "Surface NxN in pixels | default: 1024 ", ARG_GROUP_INHERIT},
         {"bailout",     'i', "N"   , 0, "Bailout / Max iteration depth | default: 256 ", ARG_GROUP_INHERIT},
         {"block-size",  'b', "NxM" , 0, "Computation block size | default: 64x64", ARG_GROUP_INHERIT},
-        {"kernel-type", 'k', "native|generic|avx|avx_fma" , 0, "\nThis is the most important option determines which kernel should be used for computation which can significantly increase performance, but your CPU should support those features that you want use:\n"
+        {"kernel-type", 'k', "generic|native|avx2|avx2_fma" , 0, "\nThis is the most important option determines which kernel should be used for computation which can significantly increase performance, but your CPU should support those features that you want use:\n"
                                "generic - This Kernel is written in C and compiled to use generic cpu instruction set of your cpu architecture for processing.\n"
                                "native  - This kernel is written in C and only available if you compile this program from the sources with specifying MDB_ENABLE_NATIVE_KERNEL flag "
                                "this allows compiler to determine your cpu and use suitable instruction set like SSE,AVX,FMA, but performance of this kernel depends only on how smart is your compiler and this may benefit not significantly compared to the generic kernel.\n"
-                               "avx - This Kernel is written in assembler intrinsics using AVX instruction set to vectorize computation.\n"
-                               "avx_fma - This Kernel is written in assembler intrinsics using AVX and FMA3 instruction set to vectorize computation.\n"
+                               "avx2 - This Kernel is written in assembler intrinsics using AVX2 instruction set to vectorize computation.\n"
+                               "avx2_fma - This Kernel is written in assembler intrinsics using AVX2 and FMA3 instruction set to vectorize computation.\n"
                                "default: generic",
                 ARG_GROUP_INHERIT},
         {"threads",     't', "n|auto"   , 0, "Processing threads number, auto - determines count of hardware threads | default: auto", ARG_GROUP_INHERIT},
@@ -116,37 +116,6 @@ static struct argp_option options[] = {
 
         {0}
 };
-
-
-
-static void debug_arguments(struct arguments* args)
-{
-    fprintf(stdout, "[DEBUG] arguments\n"
-                    "width=%i\n"
-                    "height=%i\n"
-                    "bailout=%i\n"
-                    "block_size=%ix%i\n"
-                    "kernel_type=%i\n"
-                    "threads=%i\n"
-                    "mode=%i\n"
-                    "benchmark_runs=%i\n"
-                    "silent=%i\n"
-                    "verbose=%i\n"
-                    "output_file=%s\n",
-            args->width,
-            args->height,
-            args->bailout,
-            args->block_size.x,
-            args->block_size.y,
-            args->kernel_type,
-            args->threads,
-            args->mode,
-            args->benchmark_runs,
-            args->silent,
-            args->verbose,
-            args->output_file
-    );
-}
 
 static int parse_int(const char* key, const char* val, int min_allowed, int max_allowed)
 {
@@ -177,6 +146,48 @@ static int parse_int(const char* key, const char* val, int min_allowed, int max_
     return i;
 }
 
+static int parse_int_c(const char* key, const char* val, char** pend, int min_allowed, int max_allowed)
+{
+    errno = 0;
+    int i = (int)strtol(val, pend, 10);
+
+    if(errno != 0)
+    {
+        fprintf(stderr, "Failed to parse option as int '--%s=%s' : %s \n", key, val, strerror(errno));
+        exit(EXIT_FAILURE);
+    }
+
+    if(i < min_allowed || i > max_allowed)
+    {
+        fprintf(stderr, "Failed to parse option as int '--%s=%s' : value is out of range [%i-%i]\n", key, val, min_allowed, max_allowed);
+        exit(EXIT_FAILURE);
+    }
+
+
+    return i;
+}
+
+static void parse_block_size(const char* val, struct block_size* bs)
+{
+    errno = 0;
+    char* pend = NULL;
+    bs->x = (uint32_t)parse_int_c("block-size", val, &pend, 8, UINT16_MAX);
+
+    if(pend == NULL || (pend != NULL && *pend == '\0'))
+    {
+        bs->y = bs->x;
+    }
+    else if(pend != NULL && *pend == 'x')
+    {
+        bs->y = parse_int("block-size", pend+1, 8, UINT16_MAX);
+    }
+    else
+    {
+        fprintf(stderr, "Failed to parse option '--block-size=%s' : Unknown format\n", val);
+        exit(EXIT_FAILURE);
+    }
+}
+
 
 static int parse_kernel_type(char* arg)
 {
@@ -190,13 +201,13 @@ static int parse_kernel_type(char* arg)
     {
         return MDB_KERNEL_NATIVE;
     }
-    else if(strcmp(arg, "avx") == 0)
+    else if(strcmp(arg, "avx2") == 0)
     {
-        return MDB_KERNEL_AVX;
+        return MDB_KERNEL_AVX2;
     }
-    else if(strcmp(arg, "avx_fma") == 0)
+    else if(strcmp(arg, "avx2_fma") == 0)
     {
-        return MDB_KERNEL_AVX_FMA;
+        return MDB_KERNEL_AVX2_FMA;
     }
     else
     {
@@ -266,20 +277,8 @@ static error_t parse_opt(int key, char* arg, struct argp_state* state)
             break;
 
         case 'b':
-        {
-            int res = sscanf(arg, "%dx%d", &arguments->block_size.x, &arguments->block_size.y);
-            if(res == 1)
-            {
-                arguments->block_size.y = arguments->block_size.x;
-            }
-            else if(res == 0)
-            {
-                fprintf(stderr, "[--block-size] Can't parse the input '%s'", arg);
-                exit(EXIT_FAILURE);
-            }
-
+            parse_block_size(arg, &arguments->block_size);
             break;
-        }
 
         case 'k':
             arguments->kernel_type = parse_kernel_type(arg);

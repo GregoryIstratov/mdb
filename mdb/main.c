@@ -4,11 +4,17 @@
 
 #include <mdb/tools/utils.h>
 #include <mdb/tools/args_parser.h>
-#include <mdb/kernel/kernel_cpu.h>
+#include <mdb/kernel/mdb_kernel.h>
 #include <mdb/sched/rsched.h>
 #include <string.h>
 #include <mdb/core/benchmark.h>
 #include <mdb/core/render.h>
+
+static const char* render_control_keys =
+"Arrows  - Move Up/Down/Left/Right\n"
+"[1]/[2] - Scale up/down\n"
+"[3]/[4] - Iterations/bailout increase/decrease\n"
+"[5]/[6] - Exposure increase/decrease\n";
 
 
 inline static const char* mode_str(int mode)
@@ -35,10 +41,10 @@ inline static const char* kernel_type_str(int kernel_type)
             return "generic";
         case MDB_KERNEL_NATIVE:
             return "native";
-        case MDB_KERNEL_AVX:
-            return "avx";
-        case MDB_KERNEL_AVX_FMA:
-            return "avx_fma";
+        case MDB_KERNEL_AVX2:
+            return "avx2";
+        case MDB_KERNEL_AVX2_FMA:
+            return "avx2_fma";
 
         default:
             return "unknown";
@@ -50,7 +56,7 @@ static float* create_surface(int width, int height)
     float* surface = NULL;
     size_t size = (size_t) (width * height);
     size_t mem_size = size * sizeof(float);
-    size_t align = 32; //Required to avx aligned memory operations
+    size_t align = 4096; //make it allocate on a new page
 
     int res = posix_memalign((void**) &surface, align, mem_size);
     if (res)
@@ -101,16 +107,13 @@ int main(int argc, char** argv)
     mdb_kernel* kernel;
     if(mdb_kernel_create(&kernel, args.kernel_type, args.width, args.height, args.bailout) != 0)
     {
-        LOG_ERROR("Cannot create kernel\nExit...\n");
+        LOG_ERROR("Cannot create the kernel");
         exit(EXIT_FAILURE);
     }
 
     rsched* sched;
-    uint32_t qlen = (uint32_t) (args.width * args.height / args.block_size.x);
-
-
-    rsched_create(&sched, qlen, (uint32_t) threads);
-    rsched_split_task(sched, 0, args.width - 1, 0, args.height - 1, args.block_size.x);
+    rsched_create(&sched, (uint32_t) threads);
+    rsched_create_tasks(sched, args.width, args.height, &args.block_size);
     PARAM_DEBUG("Enqueued tasks", "%u", rsched_enqueued_tasks(sched));
 
     if(args.mode == MODE_BENCHMARK || args.mode == MODE_ONESHOT)
@@ -122,20 +125,18 @@ int main(int argc, char** argv)
         benchmark* bench = NULL;
         benchmark_create(&bench, (uint32_t) args.benchmark_runs, kernel, sched);
 
-        fprintf(stdout, "Running benchmark...");
+        fprintf(stdout, "Running benchmark...\n");
         fflush(stdout);
 
         benchmark_run(bench);
-
-        fprintf(stdout, "done.\n");
-        fflush(stdout);
 
         benchmark_print_summary(bench);
 
     }
     else if(args.mode == MODE_RENDER)
     {
-        render_run(sched, kernel, args.width, args.height, args.block_size.x);
+        LOG_INFO("Starting render mode...\nControl keys:\n%s\n", render_control_keys);
+        render_run(sched, kernel, &args);
     }
     else
     {
@@ -143,6 +144,7 @@ int main(int argc, char** argv)
     }
 
     rsched_shutdown(sched);
+    mdb_kernel_destroy(kernel);
 
 
     return 0;

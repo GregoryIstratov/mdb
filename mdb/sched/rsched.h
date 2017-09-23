@@ -6,6 +6,11 @@
 
 //#define RSCHED_DEBUG_DETAIL
 
+struct block_size
+{
+    uint32_t x, y;
+};
+
 enum
 {
     RENDER_SCHED_ROOT = 0,
@@ -17,11 +22,13 @@ typedef void(* rsched_proc_fun)(uint32_t x0, uint32_t x1, uint32_t y0, uint32_t 
 
 typedef struct _rsched rsched;
 
-void rsched_create(rsched** psched, uint32_t queue_len, uint32_t workers);
+void rsched_create(rsched** psched, uint32_t workers);
+
+void rsched_create_tasks(rsched* sched, uint32_t width, uint32_t height, struct block_size* grain);
 
 void rsched_set_proc_fun(rsched* sched, rsched_proc_fun fun, void* user_ctx);
 
-void rsched_split_task(rsched* sched, uint32_t x0, uint32_t x1, uint32_t y0, uint32_t y1, uint32_t grain);
+//void rsched_split_task(rsched* sched, uint32_t x0, uint32_t x1, uint32_t y0, uint32_t y1, struct block_size* grain);
 
 void rsched_shutdown(rsched* sched);
 
@@ -29,7 +36,7 @@ uint32_t rsched_get_workers_count(rsched* sched);
 
 void rsched_requeue(rsched* sched);
 
-void rsched_queue_resize(rsched* sched, uint32_t queue_len);
+//void rsched_queue_resize(rsched* sched, uint32_t queue_len);
 
 void rsched_yield(rsched* sched, uint32_t caller);
 

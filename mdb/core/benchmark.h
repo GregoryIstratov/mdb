@@ -1,7 +1,7 @@
 #pragma once
 
 #include <mdb/sched/rsched.h>
-#include <mdb/kernel/kernel_cpu.h>
+#include <mdb/kernel/mdb_kernel.h>
 
 typedef struct _benchmark benchmark;
 

@@ -6,13 +6,15 @@ typedef struct _mdb_kernel mdb_kernel;
 
 enum
 {
-    MDB_KERNEL_AVX_FMA,
-    MDB_KERNEL_AVX,
+    MDB_KERNEL_AVX2_FMA,
+    MDB_KERNEL_AVX2,
     MDB_KERNEL_GENERIC,
     MDB_KERNEL_NATIVE
 };
 
 int mdb_kernel_create(mdb_kernel** pmdb, int kernel_type, int width, int height, int bailout);
+
+void mdb_kernel_destroy(mdb_kernel* mdb);
 
 void mdb_kernel_set_surface(mdb_kernel* mdb, float* f32surface);
 

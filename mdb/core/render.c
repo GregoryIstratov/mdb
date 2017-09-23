@@ -2,9 +2,10 @@
 #include <GLFW/glfw3.h>
 
 #include <mdb/sched/rsched.h>
-#include <mdb/kernel/kernel_cpu.h>
+#include <mdb/kernel/mdb_kernel.h>
 #include <mdb/render/ogl_render.h>
 #include <mdb/tools/utils.h>
+#include <string.h>
 
 
 struct render_ctx
@@ -15,7 +16,7 @@ struct render_ctx
     uint32_t bailout;
     uint32_t width;
     uint32_t height;
-    uint32_t grain;
+    struct block_size grain;
 };
 
 
@@ -24,20 +25,20 @@ static void render_update_scale(struct render_ctx* ctx)
 {
     mdb_kernel_set_scale(ctx->kernel, ctx->scale);
     mdb_kernel_submit_changes(ctx->kernel);
-    PARAM_DEBUG("scale", "%f", ctx->scale);
+    PARAM_INFO("scale", "%f", ctx->scale);
 }
 
 static void render_update_shift(struct render_ctx* ctx)
 {
     mdb_kernel_set_shift(ctx->kernel, ctx->shift_x, ctx->shift_y);
     mdb_kernel_submit_changes(ctx->kernel);
-    PARAM_DEBUG("shift", "%f %f", ctx->shift_x, ctx->shift_y);
+    PARAM_INFO("shift", "%f %f", ctx->shift_x, ctx->shift_y);
 }
 
 static void render_update_bailout(struct render_ctx* ctx)
 {
     mdb_kernel_set_bailout(ctx->kernel, ctx->bailout);
-    PARAM_DEBUG("bailout", "%u", ctx->bailout);
+    PARAM_INFO("bailout", "%u", ctx->bailout);
 }
 
 static uint32_t iterations_get_mod(struct render_ctx* ctx)
@@ -154,17 +155,11 @@ static void render_resize(int width, int height, void* context)
     ctx->width  = (uint32_t)width;
     ctx->height = (uint32_t)height;
 
-//    mdb_kernel_set_size(ctx->kernel, ctx->width, ctx->height);
-//    mdb_kernel_submit_changes(ctx->kernel);
-
     mdb_kernel_set_size(ctx->kernel, ctx->width, ctx->height);
-//    mdb_kernel_set_scale(ctx->kernel, ctx->scale);
-//    mdb_kernel_set_shift(ctx->kernel, ctx->shift_x, ctx->shift_y);
-//    mdb_kernel_set_bailout(ctx->kernel, ctx->bailout);
-//    mdb_kernel_submit_changes(ctx->kernel);
+    mdb_kernel_submit_changes(ctx->kernel);
 
-    rsched_queue_resize(ctx->sched, ctx->width * ctx->height / ctx->grain);
-    rsched_split_task(ctx->sched, 0, ctx->width-1, 0, ctx->height-1, ctx->grain);
+    //rsched_queue_resize(ctx->sched, ctx->width * ctx->height / (ctx->grain.x * ctx->grain.y));
+    rsched_create_tasks(ctx->sched, ctx->width, ctx->height, &ctx->grain);
 
 }
 
@@ -186,23 +181,22 @@ static void render_kernel_proc_fun(uint32_t x0, uint32_t x1, uint32_t y0, uint32
     mdb_kernel_process_block(rend_ctx->kernel, x0, x1, y0, y1);
 }
 
-void render_run(rsched* sched, mdb_kernel* kernel, uint32_t width, uint32_t height, uint32_t grain)
+void render_run(rsched* sched, mdb_kernel* kernel, struct arguments* args)
 {
     struct render_ctx ctx;
 
-    ctx.bailout = 256;
-    ctx.scale   = 0.00188964f;
-    ctx.shift_x = -1.347385054652062f;
-    ctx.shift_y = 0.063483549665202f;
-    ctx.width   = width;
-    ctx.height  = height;
-    ctx.grain   = grain;
-
+    ctx.bailout = args->bailout;
+    ctx.scale   = 2.793042f;
+    ctx.shift_x = -0.860787f;
+    ctx.shift_y = 0.0f;
+    ctx.width   = args->width;
+    ctx.height  = args->height;
+    memcpy(&ctx.grain, &args->block_size, sizeof(args->block_size));
 
     ctx.sched = sched;
     ctx.kernel = kernel;
 
-    mdb_kernel_set_size(kernel, width, height);
+    mdb_kernel_set_size(kernel, ctx.width, ctx.height);
     mdb_kernel_set_scale(kernel, ctx.scale);
     mdb_kernel_set_shift(kernel, ctx.shift_x, ctx.shift_y);
     mdb_kernel_set_bailout(kernel, ctx.bailout);
@@ -211,13 +205,11 @@ void render_run(rsched* sched, mdb_kernel* kernel, uint32_t width, uint32_t heig
     rsched_set_proc_fun(sched, &render_kernel_proc_fun, &ctx);
 
     ogl_render* rend;
-    ogl_render_create(&rend, width, height, &render_update, &ctx, &render_key_callback);
+    ogl_render_create(&rend, ctx.width, ctx.height, &render_update, &ctx, &render_key_callback);
     ogl_render_set_resize_callback(rend, &render_resize);
 
 
     ogl_render_render_loop(rend);
-
-    //rsched_print_summary(&sched);
 
     ogl_render_destroy(rend);
 }

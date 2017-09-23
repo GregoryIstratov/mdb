@@ -1,5 +1,7 @@
 #pragma once
 
+#include <mdb/sched/rsched.h>
+
 enum
 {
     MODE_ONESHOT,
@@ -7,10 +9,6 @@ enum
     MODE_RENDER
 };
 
-struct block_size
-{
-    int x, y;
-};
 
 /* Used by main to communicate with parse_opt. */
 struct arguments

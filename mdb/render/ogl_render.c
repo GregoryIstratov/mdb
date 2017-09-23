@@ -11,17 +11,11 @@
 #include <time.h>
 #include <stdbool.h>
 #include <mdb/tools/utils.h>
-
-#define PRINT_ERR(msg,...) { fprintf(stderr, msg, ##__VA_ARGS__); fprintf(stderr, ": %m %s:%i\n", __FILE__, __LINE__); }
-#define PRINT_ERR_EXIT(msg, ... ) { PRINT_ERR(msg, ##__VA_ARGS__); exit(EXIT_FAILURE); }
-#define LOG_PARAM(label, fmt, ...) { fprintf(stdout, "%-20s: ", (label)); fprintf(stdout, (fmt), ##__VA_ARGS__); fprintf(stdout,"\n"); fflush(stdout); }
-#define LOG_DEBUG(label, fmt, ...) LOG_PARAM(label, fmt, ##__VA_ARGS__)
-#define PTHREAD_CHECK_RETURN(exp) { int ret; if((ret = (exp))) { fprintf(stderr, "%s: %s %s:%i\n", #exp, strerror(ret), __FILE__, __LINE__); exit(EXIT_FAILURE); } }
-#define CHECK_RETURN_ERRNO(exp) { if(exp) { fprintf(stderr, "%s: %s %s:%i\n", #exp, strerror(errno), __FILE__, __LINE__); exit(EXIT_FAILURE); } }
+#include <mdb/tools/timer.h>
 
 #define PBO_SIZE_MULTIPLIER 8
 
-static char* file_read(const char* filename)
+static char* file_read_shader_source(const char* filename)
 {
     FILE* in = fopen(filename, "rb");
     if (in == NULL)
@@ -52,46 +46,7 @@ static char* file_read(const char* filename)
     return res;
 }
 
-static void file_read_all(const char* filename, size_t* size, void** data)
-{
-    FILE* in = fopen(filename, "rb");
-    if (in == NULL)
-    {
-        fprintf(stderr, "Failed to open the file '%s': %s", filename, strerror(errno));
-        fflush(stderr);
-        exit(EXIT_FAILURE);
-    }
-
-    fseek(in, 0, SEEK_END);
-
-    *size = (size_t)ftell(in);
-
-    rewind(in);
-
-
-    *data = calloc(1, *size);
-
-    if((*data) == NULL)
-    {
-        PRINT_ERR_EXIT("[file_read_all] calloc failed");
-    }
-
-    size_t read = fread(*data, 1, *size, in);
-
-    if (read != *size)
-    {
-        PRINT_ERR_EXIT("[file_read_all] fread has read not all bytes in stream read = %lu != total = %lu", read, (*size));
-    }
-
-    if (ferror(in))
-    {
-        PRINT_ERR_EXIT("[file_read_all] fread error");
-    }
-
-    fclose(in);
-}
-
-static void print_log(GLuint object)
+static void print_shader_log(const char* text, GLuint object)
 {
     GLint log_length = 0;
     if (glIsShader(object))
@@ -99,13 +54,18 @@ static void print_log(GLuint object)
     else if (glIsProgram(object))
         glGetProgramiv(object, GL_INFO_LOG_LENGTH, &log_length);
     else {
-        fprintf(stderr, "printlog: Not a shader or a program\n");
+        fprintf(stderr, "print_shader_log: Not a shader or a program\n");
         return;
     }
 
+
     if(log_length == 0)
     {
-        fprintf(stderr, "OK\n");
+#if !defined(NDEBUG)
+        fprintf(stdout, "%s: OK\n", text);
+#else
+        UNUSED_PARAM(text);
+#endif
         return;
     }
 
@@ -123,7 +83,7 @@ static void print_log(GLuint object)
 static GLuint create_shader(const char* filename, GLenum type)
 {
 
-    char *source = file_read(filename);
+    char *source = file_read_shader_source(filename);
 
     if (source == NULL)
         return 0;
@@ -141,8 +101,7 @@ static GLuint create_shader(const char* filename, GLenum type)
 
     free(source);
 
-    fprintf(stderr, "%s: ", filename);
-    print_log(res);
+    print_shader_log(filename, res);
     if (compile_ok == GL_FALSE) {
         glDeleteShader(res);
         return 0;
@@ -174,8 +133,7 @@ static GLuint create_screen_quad_program()
     glLinkProgram(program);
     glGetProgramiv(program, GL_LINK_STATUS, &link_ok);
     if (!link_ok) {
-        fprintf(stderr, "glLinkProgram:");
-        print_log(program);
+        print_shader_log("glLinkProgram", program);
         exit(EXIT_FAILURE);
     }
 
@@ -185,6 +143,8 @@ static GLuint create_screen_quad_program()
 
 static void error_callback(int error, const char* description)
 {
+    UNUSED_PARAM(error);
+
     fprintf(stderr, "Error: %s\n", description);
 }
 
@@ -198,6 +158,7 @@ struct pbo_t
     uint32_t height;
     data_update_callback data_update;
     void* update_context;
+    void* data;
 };
 
 struct _ogl_render
@@ -217,10 +178,6 @@ static ogl_render_resize_callback g_resize_cb;
 
 static ogl_render* g_rend;
 static GLsync gSyncObject;
-static const size_t MAX_BUFFER_COUNT = 3;
-
-static bool gParamSyncBuffers   = true;
-static size_t gParamBufferCount = 1;
 
 static size_t gWaitCount = 0;
 
@@ -257,8 +214,13 @@ static void create_pbo(struct pbo_t* pbo, uint32_t width, uint32_t height, data_
 
     glGenBuffers(1, &pbo->buffer_id);
     glBindBuffer(GL_PIXEL_UNPACK_BUFFER, pbo->buffer_id);
-    glBufferData(GL_PIXEL_UNPACK_BUFFER, pbo->buff_size, NULL, GL_STREAM_DRAW);
 
+    GLuint flags = GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT;
+    glBufferStorage(GL_PIXEL_UNPACK_BUFFER, pbo->buff_size, 0, flags);
+
+    //glBufferData(GL_PIXEL_UNPACK_BUFFER, pbo->buff_size, NULL, GL_STREAM_DRAW);
+
+    pbo->data = glMapBufferRange(GL_PIXEL_UNPACK_BUFFER, 0, pbo->buff_size, flags);
 
     glGenTextures(1, &pbo->texture_id);
     glBindTexture(GL_TEXTURE_2D, pbo->texture_id);
@@ -269,22 +231,12 @@ static void create_pbo(struct pbo_t* pbo, uint32_t width, uint32_t height, data_
 
 static void update_pbo(struct pbo_t* pbo)
 {
-    glBindBuffer(GL_PIXEL_UNPACK_BUFFER, pbo->buffer_id);
+    WaitBuffer(&gSyncObject);
 
-    void* pbo_mem_ptr = glMapBuffer(GL_PIXEL_UNPACK_BUFFER, GL_WRITE_ONLY);
+    pbo->data_update(pbo->data, pbo->update_context);
 
-    if(!pbo_mem_ptr)
-    {
-        fprintf(stderr, "Can't map buffer");
-        exit(EXIT_FAILURE);
-    }
 
-    //glClientWaitSync(g_sync, GL_SYNC_FLUSH_COMMANDS_BIT, 0);
-
-    pbo->data_update(pbo_mem_ptr, pbo->update_context);
-
-    glUnmapBuffer(GL_PIXEL_UNPACK_BUFFER);
-    glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
+    LockBuffer(&gSyncObject);
 
 }
 
@@ -300,37 +252,48 @@ static void render_pbo(struct pbo_t* pbo)
 
 static void destroy_pbo(struct pbo_t* pbo)
 {
-
+    glDeleteBuffers(1, &pbo->buffer_id);
+    glDeleteTextures(1, &pbo->texture_id);
 }
 
 
 static void resize_pbo(struct pbo_t* pbo, uint32_t width, uint32_t height)
 {
+    //FIXME spurious corruption on resize
 
-    printf("[resize_pbo] enter\n");
+    LOG_DEBUG("[resize_pbo] enter");
 
-    //glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
-    //glBindTexture(GL_TEXTURE_2D, 0);
+    glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
+    glBindTexture(GL_TEXTURE_2D, 0);
 
-    //glDeleteBuffers(1, &pbo->buffer_id);
-    //glDeleteTextures(1, &pbo->texture_id);
+    WaitBuffer(&gSyncObject);
+
+    glDeleteBuffers(1, &pbo->buffer_id);
+    glDeleteTextures(1, &pbo->texture_id);
 
     pbo->width = width;
     pbo->height = height;
     pbo->buff_size = width*height*sizeof(float);
 
-    //glGenBuffers(1, &pbo->buffer_id);
+    glGenBuffers(1, &pbo->buffer_id);
     glBindBuffer(GL_PIXEL_UNPACK_BUFFER, pbo->buffer_id);
-    glBufferData(GL_PIXEL_UNPACK_BUFFER, pbo->buff_size, 0, GL_STREAM_DRAW);
+
+    GLuint flags = GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT;
+    glBufferStorage(GL_PIXEL_UNPACK_BUFFER, pbo->buff_size, 0, flags);
 
 
-    //glGenTextures(1, &pbo->texture_id);
+    pbo->data = glMapBufferRange(GL_PIXEL_UNPACK_BUFFER, 0, pbo->buff_size, flags);
+
+    glGenTextures(1, &pbo->texture_id);
     glBindTexture(GL_TEXTURE_2D, pbo->texture_id);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_R32F, pbo->width, pbo->height, 0, GL_RED, GL_FLOAT, NULL);
-    //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 
-    printf("[resize_pbo] leave\n");
+
+    LockBuffer(&gSyncObject);
+
+    LOG_DEBUG("[resize_pbo] leave");
 }
 
 static void APIENTRY openglCallbackFunction(
@@ -351,32 +314,11 @@ static void APIENTRY openglCallbackFunction(
     }
 }
 
-static double get_total_sec(const struct timespec* ts)
-{
-    static const double NS_IN_SEC = 1000000000;
-    if (ts->tv_sec == 0)
-        return (double) ts->tv_nsec / NS_IN_SEC;
-
-    double total_sec;
-    total_sec = (double) ts->tv_nsec / NS_IN_SEC;
-    total_sec += (double) ts->tv_sec;
-
-    return total_sec;
-}
-
-
-static double sample_timer(void)
-{
-    struct timespec tm;
-
-    clock_gettime(CLOCK_MONOTONIC, &tm);
-
-    return get_total_sec(&tm);
-
-}
-
 static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
+    UNUSED_PARAM(scancode);
+    UNUSED_PARAM(mods);
+
     if (action == GLFW_PRESS || action == GLFW_REPEAT)
     {
 
@@ -385,13 +327,13 @@ static void key_callback(GLFWwindow* window, int key, int scancode, int action, 
             case GLFW_KEY_5:
             {
                 g_exposure *= 0.9;
-                LOG_PARAM("exposure","%f", g_exposure);
+                PARAM_INFO("exposure","%f", g_exposure);
                 break;
             }
             case GLFW_KEY_6:
             {
                 g_exposure *= 1.1;
-                LOG_PARAM("exposure","%f", g_exposure);
+                PARAM_INFO("exposure","%f", g_exposure);
                 break;
             }
 
@@ -409,6 +351,8 @@ static void key_callback(GLFWwindow* window, int key, int scancode, int action, 
 
 static void resize_callback(GLFWwindow* window, int width, int height)
 {
+    UNUSED_PARAM(window);
+
     g_rend->window_width = (uint32_t)width;
     g_rend->window_height = (uint32_t)height;
 
@@ -419,8 +363,6 @@ static void resize_callback(GLFWwindow* window, int width, int height)
         if(rem)
         {
             width = width - rem;
-            //glfwSetWindowSize(window, width, height);
-            //return;
         }
 
         resize_pbo(&g_rend->pbo, width, height);
@@ -448,7 +390,7 @@ void ogl_render_create(ogl_render** _rend, uint32_t width, uint32_t height, data
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 4);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-    //glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
+    glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
     rend->window = glfwCreateWindow(width, height, "Mandlebrot", NULL, NULL);
 
     if (!rend->window)
@@ -459,7 +401,9 @@ void ogl_render_create(ogl_render** _rend, uint32_t width, uint32_t height, data
 
     glfwSetWindowSizeLimits(rend->window, 640, 480, GLFW_DONT_CARE, GLFW_DONT_CARE);
     glfwSetKeyCallback(rend->window, key_callback);
-    glfwSetWindowSizeCallback(rend->window, &resize_callback);
+
+    //FIXME disabled doe to spurious buffer storage corruption on resize
+    //glfwSetWindowSizeCallback(rend->window, &resize_callback);
 
     glfwMakeContextCurrent(rend->window);
 
@@ -469,18 +413,26 @@ void ogl_render_create(ogl_render** _rend, uint32_t width, uint32_t height, data
         exit(EXIT_FAILURE);
     }
 
+#if !defined(NDEBUG)
     // Enable the debug callback
     glEnable(GL_DEBUG_OUTPUT);
     glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
     glDebugMessageCallback(openglCallbackFunction, NULL);
     glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, NULL, 1);
+#endif
 
     glEnable(GL_FRAMEBUFFER_SRGB);
 
     glfwSwapInterval(0);
 
-    printf("OpenGL %d.%d\n", GLVersion.major, GLVersion.minor);
+    //printf("OpenGL %d.%d\n", GLVersion.major, GLVersion.minor);
     printf("OpenGL %s, GLSL %s\n", glGetString(GL_VERSION), glGetString(GL_SHADING_LANGUAGE_VERSION));
+
+    if(!(GLVersion.major >= 4 && GLVersion.minor >= 4))
+    {
+        fprintf(stderr, "Unsupported OpenGL version.\nOpenGL 4.4 and above required.");
+        exit(EXIT_FAILURE);
+    }
 
     rend->program = create_screen_quad_program();
 
@@ -504,9 +456,7 @@ void ogl_render_render_loop(ogl_render* rend)
     {
         double start = sample_timer();
 
-        //glfwGetFramebufferSize(rend->window, (int*)&rend->width, (int*)&rend->height);
-
-        //glViewport(0, 0, rend->width, rend->height);
+        WaitBuffer(&gSyncObject);
 
         int vp_bot = 0;
         int vp_left = rend->window_width - rend->pbo.width;
@@ -523,22 +473,6 @@ void ogl_render_render_loop(ogl_render* rend)
         glClear(GL_COLOR_BUFFER_BIT);
 
         glUseProgram(rend->program);
-
-//        GLint width_location = glGetUniformLocation(program, "width");
-//        GLint height_location = glGetUniformLocation(program, "height");
-//        GLint scale_location = glGetUniformLocation(program, "scale");
-//        GLint x_location = glGetUniformLocation(program, "x_shift");
-//        GLint y_location = glGetUniformLocation(program, "y_shift");
-//        GLint iterations_location = glGetUniformLocation(program, "iterations");
-
-//        glUniform1i(width_location, width);
-//        glUniform1i(height_location, height);
-//        glUniform1d(scale_location, scale);
-//        glUniform1d(x_location, x_shift);
-//        glUniform1d(y_location, y_shift);
-//        glUniform1i(iterations_location, iterations);
-
-        WaitBuffer(&gSyncObject);
 
         GLint exposure_location = glGetUniformLocation(rend->program, "exposure");
         glUniform1f(exposure_location, g_exposure);
@@ -569,11 +503,14 @@ void ogl_render_destroy(ogl_render* rend)
     glfwDestroyWindow(rend->window);
     glDeleteProgram(rend->program);
     glDeleteVertexArrays(1, &rend->vao);
+    destroy_pbo(&rend->pbo);
 
     free(rend);
 }
 
 void ogl_render_set_resize_callback(ogl_render* rend, ogl_render_resize_callback cb)
 {
+    UNUSED_PARAM(rend);
+
     g_resize_cb = cb;
 }

@@ -3,7 +3,7 @@
 #include <malloc.h>
 #include <mdb/tools/utils.h>
 #include <mdb/tools/timer.h>
-#include <mdb/kernel/kernel_cpu.h>
+#include <mdb/kernel/mdb_kernel.h>
 #include <mdb/sched/rsched.h>
 
 #include <mdb/tools/atomic_x86.h>
