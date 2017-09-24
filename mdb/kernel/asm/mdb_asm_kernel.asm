@@ -234,31 +234,32 @@ align 32
 %endmacro
 
 section .text
-    global mdbt_kernel:function
     global sample_rdtsc:function
     global sample_rdtscp:function
 
+    global mdb_asm_kernel_process_block:function
+
     ; rdi = width
     ; rsi = height
-    global mdbt_set_size:function
+    global mdb_asm_kernel_set_size:function
 
     ; xmm0 - scale
-    global mdbt_set_scale:function
+    global mdb_asm_kernel_set_scale:function
 
     ; xmm0 - shift_x
     ; xmm1 - shift_y
-    global mdbt_set_shift:function
+    global mdb_asm_kernel_set_shift:function
 
     ; edi - bailout
-    global mdbt_set_bailout:function
+    global mdb_asm_kernel_set_bailout:function
 
     ; rdi - pointer to f32 buffer
-    global mdbt_set_surface:function
+    global mdb_asm_kernel_set_surface:function
 
     ;void(void)
-    global mdbt_compute_transpose_offset:function
+    global mdb_asm_kernel_submit_changes:function
 
-mdbt_compute_transpose_offset:
+mdb_asm_kernel_submit_changes:
     ;(height_r * cy + center) * scale + shift_y
     ;cy * height_r * scale + center * scale + shift_y
     ;a = height_r * scale
@@ -332,7 +333,7 @@ mdbt_compute_transpose_offset:
 
 ; rdi = width
 ; rsi = height
-mdbt_set_size:
+mdb_asm_kernel_set_size:
     mov [width], rdi
     mov [height],rsi
 
@@ -360,24 +361,24 @@ mdbt_set_size:
     ret
 
 ; xmm0 - scale
-mdbt_set_scale:
+mdb_asm_kernel_set_scale:
     vmovss [scale_ss],xmm0
     ret
 
 ; xmm0 - shift_x
 ; xmm1 - shift_y
-mdbt_set_shift:
+mdb_asm_kernel_set_shift:
     vmovss [shift_x_ss],xmm0
     vmovss [shift_y_ss],xmm1
     ret
 
 ; edi - bailout
-mdbt_set_bailout:
+mdb_asm_kernel_set_bailout:
     mov [bailout_si],edi
     ret
 
 ; rdi - pointer to f32 buffer
-mdbt_set_surface:
+mdb_asm_kernel_set_surface:
     mov [output_ptr],rdi
     ret
 
@@ -419,8 +420,8 @@ sample_rdtscp:
 ; rsi x1
 ; rdx y0
 ; rcx y1
-mdbt_kernel:
-%push mdbt_kernel
+mdb_asm_kernel_process_block:
+%push mdb_asm_kernel_process_block
 %stacksize flat64
 %assign %$localsize 0
 
@@ -654,7 +655,7 @@ run_kernel:
 
     enter %$localsize,0
 
-    call mdbt_compute_transpose_offset
+    call mdb_asm_kernel_submit_changes
 
     xor rax,rax
     mov [i],rax
@@ -681,7 +682,7 @@ run_kernel:
     mov rsi,1023
     mov rdx,0
     mov rcx,1023
-    call mdbt_kernel
+    call mdb_asm_kernel_process_block
 
     mov rax,[i]
     inc rax

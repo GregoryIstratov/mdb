@@ -9,7 +9,9 @@ enum
     MDB_KERNEL_AVX2_FMA,
     MDB_KERNEL_AVX2,
     MDB_KERNEL_GENERIC,
-    MDB_KERNEL_NATIVE
+    MDB_KERNEL_NATIVE,
+    MDB_KERNEL_AVX2_FMA_ASM,
+    MDB_KERNEL_EXTERNAL
 };
 
 int mdb_kernel_create(mdb_kernel** pmdb, int kernel_type, int width, int height, int bailout);

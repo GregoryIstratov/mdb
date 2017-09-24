@@ -13,7 +13,7 @@ int run_kernel();
 #include <time.h>
 #include <locale.h>
 
-#include "kernel.h"
+#include "mdb_asm_kernel.h"
 
 #include <pthread.h>
 #include <stdatomic.h>

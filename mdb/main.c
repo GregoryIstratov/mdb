@@ -45,13 +45,15 @@ inline static const char* kernel_type_str(int kernel_type)
             return "avx2";
         case MDB_KERNEL_AVX2_FMA:
             return "avx2_fma";
+        case MDB_KERNEL_AVX2_FMA_ASM:
+            return "avx2_fma_asm";
 
         default:
             return "unknown";
     }
 }
 
-static float* create_surface(int width, int height)
+static float* surface_create(int width, int height)
 {
     float* surface = NULL;
     size_t size = (size_t) (width * height);
@@ -72,6 +74,11 @@ static float* create_surface(int width, int height)
     memset(surface, 0, mem_size);
 
     return surface;
+}
+
+static void surface_destroy(float* surface)
+{
+    free(surface);
 }
 
 int main(int argc, char** argv)
@@ -118,7 +125,7 @@ int main(int argc, char** argv)
 
     if(args.mode == MODE_BENCHMARK || args.mode == MODE_ONESHOT)
     {
-        float* surface = create_surface(args.width, args.height);
+        float* surface = surface_create(args.width, args.height);
 
         mdb_kernel_set_surface(kernel, surface);
 
@@ -131,6 +138,8 @@ int main(int argc, char** argv)
         benchmark_run(bench);
 
         benchmark_print_summary(bench);
+
+        surface_destroy(surface);
 
     }
     else if(args.mode == MODE_RENDER)

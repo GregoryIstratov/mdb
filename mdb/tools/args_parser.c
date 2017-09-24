@@ -209,6 +209,10 @@ static int parse_kernel_type(char* arg)
     {
         return MDB_KERNEL_AVX2_FMA;
     }
+    else if(strcmp(arg, "avx2_fma_asm") == 0)
+    {
+        return MDB_KERNEL_AVX2_FMA_ASM;
+    }
     else
     {
         fprintf(stderr, "Unknown value for --kernel-type=%s\n", arg);

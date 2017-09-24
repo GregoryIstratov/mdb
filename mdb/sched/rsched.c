@@ -340,10 +340,6 @@ static void rsched_split_task(rsched* sched, uint32_t x0, uint32_t x1, uint32_t 
     }
     else
     {
-//        printf("block: %lux%lu\n", xsz, ysz);
-//        printf("[%lu %lu]\n", x0, x1);
-//        printf("[%lu %lu]\n", y0, y1);
-
         rsched_push(sched, x0, x1, y0, y1);
     }
 }
