@@ -7,10 +7,6 @@
 #include <mdb/tools/utils.h>
 #include <mdb/tools/atomic_x86.h>
 
-#define PTHREAD_CHECK_RETURN(exp) { int ret; if((ret = (exp))) { fprintf(stderr, "%s: %s %s:%i\n", #exp, strerror(ret), __FILE__, __LINE__); exit(EXIT_FAILURE); } }
-#define CHECK_RETURN_ERRNO(exp) { if(exp) { fprintf(stderr, "%s: %s %s:%i\n", #exp, strerror(errno), __FILE__, __LINE__); exit(EXIT_FAILURE); } }
-
-
 enum
 {
     RC_WORKER_RUNNING,
@@ -64,8 +60,19 @@ void rsched_create(rsched** psched, uint32_t workers)
     sched->queue_top = 0;
     atomic_store(&sched->queue_bot, 0);
 
-    PTHREAD_CHECK_RETURN(pthread_cond_init(&sched->cond, NULL))
-    PTHREAD_CHECK_RETURN(pthread_mutex_init(&sched->mtx, NULL))
+    int ret = 0;
+    if((ret = pthread_cond_init(&sched->cond, NULL)))
+    {
+        LOG_ERROR("[rsched_create] [pthread_cond_init]: %s", strerror(ret));
+        exit(EXIT_FAILURE);
+    }
+
+
+    if((ret = pthread_mutex_init(&sched->mtx, NULL)))
+    {
+        LOG_ERROR("[rsched_create] [pthread_mutex_init]: %s", strerror(ret));
+        exit(EXIT_FAILURE);
+    }
 
 
     sched->worker_threads = (pthread_t*)calloc(workers, sizeof(pthread_t));
@@ -76,17 +83,26 @@ void rsched_create(rsched** psched, uint32_t workers)
 
     atomic_store(&sched->processed_tasks, 0);
 
-    PTHREAD_CHECK_RETURN(pthread_mutex_lock(&sched->mtx))
+    pthread_mutex_lock(&sched->mtx);
     for(uint32_t i = 0; i < workers; ++i)
     {
         sched->worker_info[i].state = RC_WORKER_RUNNING;
 
-        PTHREAD_CHECK_RETURN(pthread_create(&sched->worker_threads[i], NULL, &rsched_worker, sched))
+        if((ret = pthread_create(&sched->worker_threads[i], NULL, &rsched_worker, sched)))
+        {
+            LOG_ERROR("[rsched_create] [pthread_create]: %s", strerror(ret));
+            exit(EXIT_FAILURE);
+        }
 
 
         char name[32];
         snprintf(name, 32, "worker%u", i);
-        PTHREAD_CHECK_RETURN(pthread_setname_np(sched->worker_threads[i], name))
+
+        if((ret = pthread_setname_np(sched->worker_threads[i], name)))
+        {
+            LOG_ERROR("[rsched_create] [pthread_setname_np]: %s", strerror(ret));
+            exit(EXIT_FAILURE);
+        }
     }
 
     while (!rsched_check_workers_state(sched, RC_WORKER_SLEEP))
@@ -94,7 +110,7 @@ void rsched_create(rsched** psched, uint32_t workers)
         pthread_cond_wait(&sched->cond, &sched->mtx);
     }
 
-    PTHREAD_CHECK_RETURN(pthread_mutex_unlock(&sched->mtx))
+    pthread_mutex_unlock(&sched->mtx);
 }
 
 void rsched_set_proc_fun(rsched* sched, rsched_proc_fun fun, void* user_ctx)
@@ -189,8 +205,7 @@ static void rsched_queue_resize(rsched* sched, uint32_t queue_len, int flags)
     }
     else
     {
-        fprintf(stderr, "[rsched_queue_resize] unknown flags\n");
-        exit(EXIT_FAILURE);
+        LOG_ERROR("[rsched_queue_resize] unknown flags");
     }
 }
 
@@ -203,14 +218,14 @@ void rsched_yield(rsched* sched, uint32_t caller)
     {
 
 #if defined(RSCHED_DEBUG_DETAIL)
-        fprintf(stdout, "Main thread yield\n");
-        fflush(stdout);
+        LOG_DEBUG("[rsched_yield] Main thread yield");
 #endif
 
         if(!rsched_check_workers_state(sched, RC_WORKER_SLEEP))
         {
-            fprintf(stderr, "[ERROR] Main thread entered sleep state before all workers were freed!\n");
-            fflush(stdout);
+            LOG_ERROR("[rsched_yield] Serious bug discovered! "
+                              "Main thread entered to the sleep state before all workers were freed! "
+                              "This can cause a fatal error or hang the program!");
         }
 
         rsched_set_workers_state(sched, RC_WORKER_PENDING_START);
@@ -222,8 +237,7 @@ void rsched_yield(rsched* sched, uint32_t caller)
         }
 
 #if defined(RSCHED_DEBUG_DETAIL)
-        fprintf(stdout, "Main thread waken up\n");
-        fflush(stdout);
+        LOG_DEBUG("[rsched_yield] Main thread waken up");
 #endif
 
     }
@@ -232,8 +246,7 @@ void rsched_yield(rsched* sched, uint32_t caller)
         int this_worker = rsched_get_worker_id(sched, pthread_self());
 
 #if defined(RSCHED_DEBUG_DETAIL)
-        fprintf(stdout, "[%i] worker yields\n", this_worker);
-        fflush(stdout);
+        LOG_DEBUG("[rsched_yield] [%i] worker yields", this_worker);
 #endif
 
         sched->worker_info[this_worker].state = RC_WORKER_SLEEP;
@@ -249,14 +262,13 @@ void rsched_yield(rsched* sched, uint32_t caller)
         sched->worker_info[this_worker].state = RC_WORKER_RUNNING;
 
 #if defined(RSCHED_DEBUG_DETAIL)
-        fprintf(stdout, "[%i] worker waken up\n", this_worker);
-        fflush(stdout);
+        LOG_DEBUG("[rsched_yield] [%i] worker waken up", this_worker);
 #endif
 
     }
     else
     {
-        fprintf(stderr, "[rsched_yield] Unknown caller id: %u \n", caller);
+        LOG_ERROR("[rsched_yield] Unknown caller id: %u", caller);
         exit(EXIT_FAILURE);
     }
 
@@ -268,7 +280,7 @@ void rsched_push(rsched* sched, uint32_t x0, uint32_t x1, uint32_t y0, uint32_t 
     if(sched->queue_top >= sched->queue_len)
     {
         uint32_t ext_len = sched->queue_len / 4;
-        fprintf(stderr, "[rsched_push] attempt to bad access, element {%i, %i, %i, %i}. Extending queue [%i]->[%i]\n",
+        LOG_WARNING("[rsched_push] attempt to out of range access, element {%i, %i, %i, %i}. Extending queue [%i]->[%i]\n",
                 x0, x1, y0, y1,
                 sched->queue_len, sched->queue_len + ext_len);
 

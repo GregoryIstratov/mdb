@@ -11,6 +11,7 @@
 #define LOG_WARNING(msg, ...) _LOG_MESSAGE("[WARNING] ", msg, ##__VA_ARGS__)
 #define LOG_DEBUG(msg,...) _LOG_MESSAGE("[DEBUG] ", msg, ##__VA_ARGS__)
 #define LOG_INFO(msg,...) _LOG_MESSAGE("[INFO] ", msg, ##__VA_ARGS__)
+#define LOG_SAY(msg,...) { fprintf(stdout, msg, ##__VA_ARGS__); fprintf(stdout, "\n"); }
 
 #define PARAM_INFO(label, fmt, ...) { fprintf(stdout, "%-20s: ", (label)); fprintf(stdout, (fmt), ##__VA_ARGS__); fprintf(stdout,"\n"); fflush(stdout); }
 #define PARAM_DEBUG(label, fmt, ...) PARAM_INFO(label, fmt, ##__VA_ARGS__)

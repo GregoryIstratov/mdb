@@ -1,40 +1,128 @@
 #include "mdb_kernel.h"
+#include <stdlib.h>
+#include <dlfcn.h>
 #include <stdint.h>
 #include <immintrin.h>
 #include <stdalign.h>
 #include <mdb/tools/utils.h>
 #include <mdb/kernel/bits/mdb_kernel.h>
 #include <mdb/kernel/asm/mdb_asm_kernel.h>
+#include <string.h>
 
-static void mdb_asm_kernel_process_block_proxy(uint32_t x0, uint32_t x1, uint32_t y0, uint32_t y1)
+
+static void mdb_kernel_init(mdb_kernel* mdb);
+
+static int mdb_kernel_ext_load(mdb_kernel* mdb, const char* ext_kernel)
 {
-    mdb_asm_kernel_process_block(x0, x1, y0, y1);
+
+#define KRN_CHECK_RESOLV  \
+    if ((error = dlerror()) != NULL) \
+    { \
+        LOG_ERROR("[mdb_kernel_ext_load] Error on symbol resolving: %s", error); \
+        return -1; \
+    }
+
+    if(!ext_kernel)
+    {
+        LOG_ERROR("[mdb_kernel_ext_load] Kernel name is not set.");
+        return -1;
+    }
+
+    char filename[1024];
+    memset(filename, 0, 1024);
+
+    strcpy(filename, "./kernels/");
+    strcat(filename, ext_kernel);
+    strcat(filename, ".so");
+
+    LOG_SAY("Loading external kernel: %s ...", filename);
+
+    void* handle;
+    char* error;
+
+    handle = dlopen(filename, RTLD_LAZY);
+    if(!handle)
+    {
+        LOG_ERROR("[mdb_kernel_ext_load] Failed to load kernel '%s': %s", ext_kernel, dlerror());
+        return -1;
+    }
+
+    /* Clear any existing error */
+    dlerror();
+
+    mdb->ext_metadata_query_fun = (mdb_kernel_ext_metadata_query_t)dlsym(handle, "mdb_kernel_ext_metadata_query");
+
+    KRN_CHECK_RESOLV
+
+    mdb->ext_init_fun = (mdb_kernel_ext_init_t)dlsym(handle, "mdb_kernel_ext_init");
+
+    KRN_CHECK_RESOLV
+
+    mdb->ext_shutdown_fun = (mdb_kernel_ext_shutdown_t)dlsym(handle, "mdb_kernel_ext_shutdown");
+
+    KRN_CHECK_RESOLV
+
+    mdb->ext_block_fun = (mdb_kernel_ext_process_block_t)dlsym(handle, "mdb_kernel_ext_process_block");
+
+    KRN_CHECK_RESOLV
+
+    mdb->ext_set_size_fun = (mdb_kernel_ext_set_size_t)dlsym(handle, "mdb_kernel_ext_set_size");
+
+    KRN_CHECK_RESOLV
+
+    mdb->ext_set_scale_fun = (mdb_kernel_ext_set_scale_t)dlsym(handle, "mdb_kernel_ext_set_scale");
+
+    KRN_CHECK_RESOLV
+
+    mdb->ext_set_shift_fun = (mdb_kernel_ext_set_shift_t)dlsym(handle, "mdb_kernel_ext_set_shift");
+
+    KRN_CHECK_RESOLV
+
+    mdb->ext_set_bailout_fun = (mdb_kernel_ext_set_bailout_t)dlsym(handle, "mdb_kernel_ext_set_bailout");
+
+    KRN_CHECK_RESOLV
+
+    mdb->ext_set_surface_fun = (mdb_kernel_ext_set_surface_t)dlsym(handle, "mdb_kernel_ext_set_surface");
+
+    KRN_CHECK_RESOLV
+
+    mdb->ext_submit_changes_fun = (mdb_kernel_ext_submit_changes_t)dlsym(handle, "mdb_kernel_ext_submit_changes");
+
+    KRN_CHECK_RESOLV
+
+#undef KRN_CHECK_RESOLV
+
+    mdb->dl_handle = handle;
+
+    LOG_SAY("External kernel '%s' has been successfully loaded.", ext_kernel);
+
+    return 0;
 }
 
-static void mdb_asm_kernel_set_size_proxy(uint32_t width, uint32_t height)
+static void mdb_kernel_ext_log_info(mdb_kernel* mdb)
 {
-    mdb_asm_kernel_set_size(width, height);
+    char buff[256];
+    memset(buff, 0, 256);
+
+    LOG_SAY("==External kernel metadata info==");
+
+    mdb->ext_metadata_query_fun(MDB_KERNEL_EXT_META_NAME, buff, 256);
+    PARAM_INFO("Name", "%s", buff);
+
+    mdb->ext_metadata_query_fun(MDB_KERNEL_EXT_META_VER_MAJ, buff, 256);
+    PARAM_INFO("Version major", "%s", buff);
+
+    mdb->ext_metadata_query_fun(MDB_KERNEL_EXT_META_VER_MIN, buff, 256);
+    PARAM_INFO("Version minor", "%s", buff);
+
+    LOG_SAY("---------------------------------");
 }
 
-static void mdb_asm_kernel_set_bailout_proxy(uint32_t bailout)
-{
-    mdb_asm_kernel_set_bailout(bailout);
-}
-
-int mdb_kernel_create(mdb_kernel** pmdb, int kernel_type, int width, int height, int bailout)
+int mdb_kernel_create(mdb_kernel** pmdb, int kernel_type, const char* ext_kernel)
 {
     *pmdb = calloc(1, sizeof(mdb_kernel));
     mdb_kernel* mdb = *pmdb;
 
-    mdb->bailout = bailout;
-    mdb->width = width;
-    mdb->height = height;
-    mdb->scale = MDB_FLOAT_C(0.00188964);
-    mdb->shift_x = MDB_FLOAT_C(-1.347385054652062);
-    mdb->shift_y = MDB_FLOAT_C(0.063483549665202);
-    mdb->width_r = MDB_FLOAT_C(1.0) / width;
-    mdb->height_r = MDB_FLOAT_C(1.0) / height;
-    mdb->aspect_ratio = MDB_FLOAT_C(width) / MDB_FLOAT_C(height);
     mdb->kernel_type = kernel_type;
 
     switch (kernel_type)
@@ -62,13 +150,18 @@ int mdb_kernel_create(mdb_kernel** pmdb, int kernel_type, int width, int height,
         {
             mdb->kernel_type = MDB_KERNEL_EXTERNAL;
 
-            mdb->ext_block_fun = &mdb_asm_kernel_process_block_proxy;
-            mdb->ext_set_bailout_fun = &mdb_asm_kernel_set_bailout_proxy;
+            mdb->ext_metadata_query_fun = &mdb_asm_kernel_metadata_query;
+            mdb->ext_init_fun = &mdb_asm_kernel_init;
+            mdb->ext_shutdown_fun = &mdb_asm_kernel_shutdown;
+            mdb->ext_block_fun = &mdb_asm_kernel_process_block;
+            mdb->ext_set_bailout_fun = &mdb_asm_kernel_set_bailout;
             mdb->ext_set_scale_fun = &mdb_asm_kernel_set_scale;
             mdb->ext_set_shift_fun = &mdb_asm_kernel_set_shift;
-            mdb->ext_set_size_fun = &mdb_asm_kernel_set_size_proxy;
+            mdb->ext_set_size_fun = &mdb_asm_kernel_set_size;
             mdb->ext_set_surface_fun = &mdb_asm_kernel_set_surface;
             mdb->ext_submit_changes_fun = &mdb_asm_kernel_submit_changes;
+
+            mdb_kernel_ext_log_info(mdb);
             break;
         }
 
@@ -106,9 +199,26 @@ int mdb_kernel_create(mdb_kernel** pmdb, int kernel_type, int width, int height,
 #endif
         }
 
+        case MDB_KERNEL_EXTERNAL:
+        {
+            if(mdb_kernel_ext_load(mdb, ext_kernel) != 0)
+                goto error_exit;
+
+            mdb_kernel_ext_log_info(mdb);
+
+            break;
+        }
+
         default:
             goto error_exit;
     }
+
+    mdb_kernel_init(mdb);
+    mdb_kernel_set_bailout(mdb, 256);
+    mdb_kernel_set_size(mdb, 1024, 1024);
+    mdb_kernel_set_scale(mdb, MDB_FLOAT_C(0.00188964));
+    mdb_kernel_set_shift(mdb, MDB_FLOAT_C(-1.347385054652062), MDB_FLOAT_C(0.063483549665202));
+    mdb_kernel_submit_changes(mdb);
 
     return 0;
 
@@ -118,8 +228,28 @@ error_exit:
     return -1;
 }
 
+
+static void mdb_kernel_init(mdb_kernel* mdb)
+{
+    if(mdb->kernel_type == MDB_KERNEL_EXTERNAL)
+    {
+        mdb->ext_init_fun();
+    }
+}
+
 void mdb_kernel_destroy(mdb_kernel* mdb)
 {
+    if(mdb->kernel_type == MDB_KERNEL_EXTERNAL)
+    {
+        mdb->ext_shutdown_fun();
+
+        if(mdb->dl_handle)
+        {
+            dlclose(mdb->dl_handle);
+            mdb->dl_handle = NULL;
+        }
+    }
+
     free(mdb);
 }
 

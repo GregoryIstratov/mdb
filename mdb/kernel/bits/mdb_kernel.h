@@ -3,7 +3,7 @@
 #include <stdint.h>
 
 #include <mdb/config/config.h>
-#include <mdb/kernel/mdb_kernel_ext.h>
+#include <mdb/kernel/external/mdb_kernel_ext.h>
 
 typedef float mdb_float_t;
 
@@ -43,6 +43,9 @@ struct _mdb_kernel
      * in parameters coming from outside.
      * */
 
+    mdb_kernel_ext_metadata_query_t ext_metadata_query_fun;
+    mdb_kernel_ext_init_t           ext_init_fun;
+    mdb_kernel_ext_shutdown_t       ext_shutdown_fun;
     mdb_kernel_ext_process_block_t  ext_block_fun;
     mdb_kernel_ext_set_bailout_t    ext_set_bailout_fun;
     mdb_kernel_ext_set_size_t       ext_set_size_fun;
@@ -51,6 +54,8 @@ struct _mdb_kernel
     mdb_kernel_ext_set_surface_t    ext_set_surface_fun;
     mdb_kernel_ext_submit_changes_t ext_submit_changes_fun;
 
+    /* Dynamic kernel handle */
+    void* dl_handle;
 
     /* Misc properties */
     int kernel_type;

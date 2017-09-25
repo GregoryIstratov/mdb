@@ -89,12 +89,13 @@ static struct argp_option options[] = {
         {"quad",        'x', "SIZE", 0, "Surface NxN in pixels | default: 1024 ", ARG_GROUP_INHERIT},
         {"bailout",     'i', "N"   , 0, "Bailout / Max iteration depth | default: 256 ", ARG_GROUP_INHERIT},
         {"block-size",  'b', "NxM" , 0, "Computation block size | default: 64x64", ARG_GROUP_INHERIT},
-        {"kernel-type", 'k', "generic|native|avx2|avx2_fma" , 0, "\nThis is the most important option determines which kernel should be used for computation which can significantly increase performance, but your CPU should support those features that you want use:\n"
+        {"kernel",      'k', "generic|native|avx2|avx2_fma|<name>" , 0, "\nThis is the most important option determines which kernel should be used for computation which can significantly increase performance, but your CPU should support those features that you want use:\n"
                                "generic - This Kernel is written in C and compiled to use generic cpu instruction set of your cpu architecture for processing.\n"
                                "native  - This kernel is written in C and only available if you compile this program from the sources with specifying MDB_ENABLE_NATIVE_KERNEL flag "
                                "this allows compiler to determine your cpu and use suitable instruction set like SSE,AVX,FMA, but performance of this kernel depends only on how smart is your compiler and this may benefit not significantly compared to the generic kernel.\n"
                                "avx2 - This Kernel is written in assembler intrinsics using AVX2 instruction set to vectorize computation.\n"
                                "avx2_fma - This Kernel is written in assembler intrinsics using AVX2 and FMA3 instruction set to vectorize computation.\n"
+                               "<name> - You can dynamically load custom kernels, specify name ( w/o extension) of a kernel in 'kernels' directory. Example: './mandelbrot -k kernel_avx_fma' which included as an example into the project\n"
                                "default: generic",
                 ARG_GROUP_INHERIT},
         {"threads",     't', "n|auto"   , 0, "Processing threads number, auto - determines count of hardware threads | default: auto", ARG_GROUP_INHERIT},
@@ -215,8 +216,7 @@ static int parse_kernel_type(char* arg)
     }
     else
     {
-        fprintf(stderr, "Unknown value for --kernel-type=%s\n", arg);
-        exit(EXIT_FAILURE);
+        return MDB_KERNEL_EXTERNAL;
     }
 
 }
@@ -285,8 +285,14 @@ static error_t parse_opt(int key, char* arg, struct argp_state* state)
             break;
 
         case 'k':
+        {
             arguments->kernel_type = parse_kernel_type(arg);
+            if(arguments->kernel_type == MDB_KERNEL_EXTERNAL)
+            {
+                arguments->kernel_name = arg;
+            }
             break;
+        }
 
         case 't':
             arguments->threads = parse_threads(arg);

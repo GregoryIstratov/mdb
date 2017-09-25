@@ -17,6 +17,7 @@ struct arguments
     int bailout;
     struct block_size block_size;
     int kernel_type;
+    char* kernel_name;
     int threads;
     int mode;
     int benchmark_runs;

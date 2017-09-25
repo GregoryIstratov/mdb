@@ -14,7 +14,7 @@ enum
     MDB_KERNEL_EXTERNAL
 };
 
-int mdb_kernel_create(mdb_kernel** pmdb, int kernel_type, int width, int height, int bailout);
+int mdb_kernel_create(mdb_kernel** pmdb, int kernel_type, const char* ext_kernel);
 
 void mdb_kernel_destroy(mdb_kernel* mdb);
 

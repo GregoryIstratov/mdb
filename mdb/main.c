@@ -9,6 +9,7 @@
 #include <string.h>
 #include <mdb/core/benchmark.h>
 #include <mdb/core/render.h>
+#include <mdb/kernel/asm/mdb_asm_kernel.h>
 
 static const char* render_control_keys =
 "Arrows  - Move Up/Down/Left/Right\n"
@@ -81,6 +82,7 @@ static void surface_destroy(float* surface)
     free(surface);
 }
 
+
 int main(int argc, char** argv)
 {
     setlocale(LC_ALL, "");
@@ -112,7 +114,7 @@ int main(int argc, char** argv)
     PARAM_INFO("Bailout", "%i", args.bailout);
 
     mdb_kernel* kernel;
-    if(mdb_kernel_create(&kernel, args.kernel_type, args.width, args.height, args.bailout) != 0)
+    if(mdb_kernel_create(&kernel, args.kernel_type, args.kernel_name) != 0)
     {
         LOG_ERROR("Cannot create the kernel");
         exit(EXIT_FAILURE);
@@ -128,6 +130,8 @@ int main(int argc, char** argv)
         float* surface = surface_create(args.width, args.height);
 
         mdb_kernel_set_surface(kernel, surface);
+        mdb_kernel_set_bailout(kernel, args.bailout);
+        mdb_kernel_set_size(kernel, args.width, args.height);
 
         benchmark* bench = NULL;
         benchmark_create(&bench, (uint32_t) args.benchmark_runs, kernel, sched);

@@ -173,35 +173,30 @@
 ;           ;                                                   ;                   ;
 ;------------------------------------------------------------------------------------
 
-extern printf
-extern malloc
-extern calloc
-extern free
-
-extern print8_ps
-extern save_surface
-extern test_timers
-extern set_def_loc
-extern sample_timer
-extern print_clocks
+; Enable relative RIP adressing for being able to make shared object on x86-64 Linux
+DEFAULT REL
 
 section .rodata
     const_one_ss:       dd 1.0
     center_ss:          dd -0.5
+    meta_name:          db 'Mandelbrot ASM Kernel [AVX2 FMA]',0
+    meta_name_size      equ $-meta_name
+    meta_ver_maj:       db '1',0
+    meta_ver_maj_size   equ $-meta_ver_maj
+    meta_ver_min:       db '0',0
+    meta_ver_min_size   equ $-meta_ver_min
 align 32
     v_iter_ps:          dd 0.0,1.0,2.0,3.0,4.0,5.0,6.0,7.0
     v_one_ps:           times 8 dd 1.0
     v_bound2_ps:        times 8 dd 4.0
 
 section .data
-    fmt_cycles:         db "Total cycles: %'lu",10,0
-    fmt_pps:            db "Cycles/Pixel: %f",10,0
-    width:              dq 0 ;1024
-    height:             dq 0 ;1024
+    width:              dd 0 ;1024
+    height:             dd 0 ;1024
     ;wxh:                dq 1024*1024
     output_ptr:         dq 0
-    output_sz:          dq 0 ;1024*1024*4
-    output_stride:      dq 0 ;1024*4
+    output_sz:          dd 0 ;1024*1024*4
+    output_stride:      dd 0 ;1024*4
 
     scale_ss:           dd 0 ;0.00188964
     shift_x_ss:         dd 0 ;-1.347385054652062
@@ -237,6 +232,11 @@ section .text
     global sample_rdtsc:function
     global sample_rdtscp:function
 
+    global mdb_asm_kernel_metadata_query:function
+
+    global mdb_asm_kernel_init:function
+    global mdb_asm_kernel_shutdown:function
+
     global mdb_asm_kernel_process_block:function
 
     ; rdi = width
@@ -258,6 +258,90 @@ section .text
 
     ;void(void)
     global mdb_asm_kernel_submit_changes:function
+
+; edi = int flags
+; rsi = char* buff
+; edx = int buffsize
+mdb_asm_kernel_metadata_query:
+%push mdb_asm_kernel_metadata_query
+%define FLAG_NAME    1b
+%define FLAG_VER_MAJ 10b
+%define FLAG_VER_MIN 100b
+
+%define flags        edi
+%define buff         rsi
+%define buffsize     edx
+%define idx          r10
+%define buff_idx     r9d
+%define buff_idx_q   r9
+%define cur_field    rcx
+%define cur_field_sz r11
+%define tmp0b        r8b
+
+    xor buff_idx,buff_idx
+.test_query_flags:
+    mov eax,flags
+    and  eax,FLAG_NAME
+    test eax,eax
+    jnz .query_name
+
+    mov eax,flags
+    and  eax,FLAG_VER_MAJ
+    test eax,eax
+    jnz .query_ver_maj
+
+    mov eax,flags
+    and  eax,FLAG_VER_MIN
+    test eax,eax
+    jnz .query_ver_min
+
+
+    jmp .exit
+
+.query_name:
+    mov cur_field,meta_name
+    mov cur_field_sz,meta_name_size
+    xor flags,FLAG_NAME
+    jmp .copy_to_buff
+
+.query_ver_maj:
+    mov cur_field,meta_ver_maj
+    mov cur_field_sz,meta_ver_maj_size
+    xor flags,FLAG_VER_MAJ
+    jmp .copy_to_buff
+
+.query_ver_min:
+    mov cur_field,meta_ver_min
+    mov cur_field_sz,meta_ver_min_size
+    xor flags,FLAG_VER_MIN
+    jmp .copy_to_buff
+
+.copy_to_buff:
+    xor idx,idx
+.copy_loop:
+    cmp buff_idx,buffsize
+    jge .exit
+
+    cmp idx,cur_field_sz
+    jge .test_query_flags
+
+    mov tmp0b,[cur_field + idx]
+    mov [buff + buff_idx_q],tmp0b
+    inc idx
+    inc buff_idx
+    jmp .copy_loop
+
+.exit:
+    xor eax,eax
+    mov [buff + buff_idx_q],eax
+    ret
+%pop
+
+mdb_asm_kernel_init:
+    ret
+
+mdb_asm_kernel_shutdown:
+    ret
 
 mdb_asm_kernel_submit_changes:
     ;(height_r * cy + center) * scale + shift_y
@@ -331,19 +415,19 @@ mdb_asm_kernel_submit_changes:
 
     ret
 
-; rdi = width
-; rsi = height
+; edi = width
+; esi = height
 mdb_asm_kernel_set_size:
-    mov [width], rdi
-    mov [height],rsi
+    mov [width], edi
+    mov [height],esi
 
     ;mov rax,rdi
     ;imul rax,rsi
     ;mov [wxh],rax
 
-    mov rax,rdi
-    imul rax,4          ; stride width*4 bytes
-    mov [output_stride],rax
+    mov eax,edi
+    imul eax,4          ; stride width*4 bytes
+    mov [output_stride],eax
 
     vcvtsi2ss xmm0,edi ; width
     vcvtsi2ss xmm1,esi ; height
@@ -414,16 +498,13 @@ sample_rdtscp:
     pop rbx
     ret
 
-
-;long x0, long x1, long y0, long y1
-; rdi x0
-; rsi x1
-; rdx y0
-; rcx y1
+;int32 x0, int32 x1, int32 y0, int32 y1
+; edi x0
+; esi x1
+; edx y0
+; ecx y1
 mdb_asm_kernel_process_block:
 %push mdb_asm_kernel_process_block
-%stacksize flat64
-%assign %$localsize 0
 
 %define _CMP_LT_OQ  0x11
 %define _CMP_NEQ_OQ 0x0c
@@ -433,15 +514,18 @@ mdb_asm_kernel_process_block:
 %define tmp0_d      r9d
 %define tmp0        r9
 %define tmp1        r10
+%define tmp1_d      r10d
+%define tmp2        r11
+%define tmp2_d      r11d
 %define bailout     r13d
 %define i           r14d
 %define x_init      r15d
 %define output      r8
 %define x           edi
-%define x_q         rdi
+;%define x_q         rdi
 %define x1          esi
 %define y           edx
-%define y_q         rdx
+;%define y_q         rdx
 %define y1          ecx
 %define v_cy_l      xmm0
 %define v_cy        ymm0
@@ -463,12 +547,18 @@ mdb_asm_kernel_process_block:
 %define v_tmp0      ymm15
 %define v_tmp0_l    xmm15
 
-    enter %$localsize, 0
+    ;enter %$localsize, 0
+    push rbp
+    mov rbp,rsp
+
     push rbx
     push r15
     push r14
     push r13
     push r12
+    push r11
+
+    sub rsp,256
 
     ; Initialize data
     mov output,[output_ptr]
@@ -485,9 +575,6 @@ mdb_asm_kernel_process_block:
 .loop_y:
     ; set x to initial
     mov x,x_init
-    ;vcvtsi2ss v_cy_l,y                          ; convert to single float and store to the low part of xmm
-    ;vshufps v_cy_l,v_cy_l,0                     ; replicate in xmm register
-    ;vinsertf128 v_cy, v_cy, v_cy_l, 1           ; copy low part to high part of ymm register
 
     vcvtsi2ss v_cy_l,y
     vbroadcastss v_cy,v_cy_l
@@ -496,11 +583,21 @@ mdb_asm_kernel_process_block:
     vfmadd213ps v_cy,v_tmp0,[v_offset_y_ps]
 
 .loop_x:
-    vcvtsi2ss v_cx_l,x                          ; convert to single float and store to the low part of xmm
-    ;vshufps v_cx_l,v_cx_l,0                     ; replicate in xmm register
-    ;vinsertf128 v_cx, v_cx, v_cx_l, 1           ; copy low part to high part of ymm register
+    ; check for x out of bound
+    ; this can happen when block size
+    ; is not perfectly fit to the width
+    ; if x is out of bound then discard this iteration
+    ; to avoid memory corruption
+
+    mov eax,x
+    add eax,8
+
+    cmp eax,[width]
+    jge .discard_pixels
+
+    vcvtsi2ss v_cx_l,x
     vbroadcastss v_cx,v_cx_l
-    vaddps v_cx,v_cx,v_iter                     ; increment
+    vaddps v_cx,v_cx,v_iter
 
 
     vfmadd213ps v_cx,v_transpose_x,v_offset_x
@@ -508,7 +605,8 @@ mdb_asm_kernel_process_block:
     vmovaps v_zx,v_cx
     vmovaps v_zy,v_cy
 
-    xor i,i                                     ; i = 0
+    ; don't forget to reset i to zero
+    xor i,i
     vxorps v_i,v_i,v_i
 .loop_bailout:
 %if 0
@@ -608,28 +706,39 @@ mdb_asm_kernel_process_block:
     ; normalize values
     vdivps v_i,v_i,v_tmp0
 
-    mov tmp0,y_q           ; y
-    mov tmp1,x_q           ; x
-    mov rax,[output_stride]
+    mov tmp0_d,y           ; y
+    mov tmp1_d,x           ; x
+    mov eax,[output_stride]
 
-    imul rax,tmp0        ; stride*y
+    imul eax,tmp0_d        ; stride*y
 
-    imul tmp1,4          ; x * sizeof(float)
-    add rax,tmp1         ; rax = y*stride + x*sizeof(float)
+    imul tmp1_d,4          ; x * sizeof(float)
+    add eax,tmp1_d         ; rax = y*stride + x*sizeof(float)
 
     ; write to buffer
     lea tmp0,[output + rax] ; tmp0 = output[y*4*stride+x*4]
     vmovups [tmp0],v_i
 
+    ;vmovups [rsp],v_i
+
+    ;mov tmp1_d,dword[rsp]
+    ;mov [tmp0],tmp1_d
+
+
+
+
     add x,8
     cmp x,x1
     jle .loop_x
+
+.discard_pixels:
 
     inc y
     cmp y,y1
     jle .loop_y
 
-
+    add rsp,256
+    pop r11
     pop r12
     pop r13
     pop r14
@@ -643,69 +752,3 @@ mdb_asm_kernel_process_block:
     leave
     ret
 %pop
-
-global run_kernel:function
-
-%if 0
-run_kernel:
-%push run_kernel
-%stacksize flat64
-%assign %$localsize 0
-%local tsc_begin:qword,tsc_end:qword,i:qword,j:qword
-
-    enter %$localsize,0
-
-    call mdb_asm_kernel_submit_changes
-
-    xor rax,rax
-    mov [i],rax
-
-    mov rdi,1
-    mov rsi,[output_sz]
-    call calloc
-    mov [output_ptr],rax
-
-    call sample_rdtsc
-    call sample_rdtscp
-    call sample_rdtsc
-    call sample_rdtscp
-    call sample_rdtsc
-    call sample_rdtscp
-
-    call sample_timer
-
-    call sample_rdtsc
-    mov [tsc_begin],rax
-
-.loop_bench:
-    mov rdi,0
-    mov rsi,1023
-    mov rdx,0
-    mov rcx,1023
-    call mdb_asm_kernel_process_block
-
-    mov rax,[i]
-    inc rax
-    mov [i],rax
-    cmp rax,100
-    ;jne .loop_bench
-
-    call sample_rdtscp
-
-    mov rdi,[tsc_begin]
-    mov rsi,rax
-    call print_clocks
-
-    call sample_timer
-
-    mov rdi,[output_ptr]
-    mov rsi,[output_sz]
-    call save_surface
-
-    leave
-
-    xor rax,rax
-    ret
-%pop
-
-%endif
