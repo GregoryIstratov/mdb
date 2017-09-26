@@ -7,7 +7,7 @@
 
 typedef float mdb_float_t;
 
-#define MDB_FLOAT_C(x) ((mdb_float_t)x)
+#define MDB_FLOAT_C(x) ((mdb_float_t)(x))
 
 struct _mdb_kernel;
 

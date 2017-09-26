@@ -120,7 +120,6 @@ static struct argp_option options[] = {
 
 static int parse_int(const char* key, const char* val, int min_allowed, int max_allowed)
 {
-    //printf("[parse_int]: %c -> %s\n", key, val);
     errno = 0;
     char* pend = NULL;
     int i = (int)strtol(val, &pend, 10);
@@ -180,7 +179,7 @@ static void parse_block_size(const char* val, struct block_size* bs)
     }
     else if(pend != NULL && *pend == 'x')
     {
-        bs->y = parse_int("block-size", pend+1, 8, UINT16_MAX);
+        bs->y = (uint32_t) parse_int("block-size", pend + 1, 8, UINT16_MAX);
     }
     else
     {
@@ -192,8 +191,6 @@ static void parse_block_size(const char* val, struct block_size* bs)
 
 static int parse_kernel_type(char* arg)
 {
-    //fprintf(stdout, "[parse_kernel_type] arg: %s\n", arg);
-
     if(strcmp(arg, "generic") == 0)
     {
         return MDB_KERNEL_GENERIC;

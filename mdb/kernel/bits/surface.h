@@ -1,7 +1,7 @@
 #pragma once
 #include <stdint.h>
 #include <mdb/tools/utils.h>
-
+#include <mdb/tools/log.h>
 
 __always_inline static void surface_set_pixels(float* restrict surface, uint32_t width, uint32_t height,
                                                const float* restrict pixels, uint32_t n, uint32_t x, uint32_t y)
@@ -20,7 +20,7 @@ __always_inline static void surface_set_pixels(float* restrict surface, uint32_t
             }
             else
             {
-                LOG_WARNING("[SURFACE_SET_PIXEL] Discarding pixel (%i,%i) due to bound (%i,%i) overflow",
+                LOG_WARN("Discarding pixel (%i,%i) due to bound (%i,%i) overflow",
                             xi, y, width, height);
                 break;
             }
@@ -29,7 +29,7 @@ __always_inline static void surface_set_pixels(float* restrict surface, uint32_t
     }
     else
     {
-            LOG_WARNING("[SURFACE_SET_PIXEL] Discarding all pixels at y = %i due to bound (%i,%i) overflow",
+            LOG_WARN("Discarding all pixels at y = %i due to bound (%i,%i) overflow",
                         y, width, height);
     }
 #else

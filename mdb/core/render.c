@@ -6,6 +6,7 @@
 #include <mdb/render/ogl_render.h>
 #include <mdb/tools/utils.h>
 #include <string.h>
+#include <mdb/tools/log.h>
 
 
 struct render_ctx

@@ -24,7 +24,7 @@ void mdb_kernel_process_block_avx2_fma(struct _mdb_kernel* mdb, uint32_t x0, uin
     __m256 v_shift_y = _mm256_set1_ps(mdb->shift_y);
     __m256 v_center = _mm256_set1_ps(-0.5f);
 
-    uint32_t bailout = mdb->bailout;
+    uint32_t bailout = (uint32_t) mdb->bailout;
 
     __m256 v_width_r = _mm256_set1_ps(mdb->width_r);
     __m256 v_height_r = _mm256_set1_ps(mdb->height_r);

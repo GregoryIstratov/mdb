@@ -240,12 +240,6 @@ static void stbi__end_write_file(stbi__write_context* s)
 typedef unsigned int stbiw_uint32;
 typedef int stb_image_write_test[sizeof(stbiw_uint32) == 4 ? 1 : -1];
 
-#ifdef STB_IMAGE_WRITE_STATIC
-static int stbi_write_tga_with_rle = 1;
-#else
-int stbi_write_tga_with_rle = 1;
-#endif
-
 static void stbiw__writefv(stbi__write_context* s, const char* fmt, va_list v)
 {
     while (*fmt)
@@ -566,8 +560,6 @@ STBIWDEF int stbi_write_hdr_to_func(stbi_write_func* func, void* context, int x,
     return stbi_write_hdr_core(&s, x, y, comp, (float*) data);
 }
 
-#ifndef STBI_WRITE_NO_STDIO
-
 STBIWDEF int stbi_write_hdr(char const* filename, int x, int y, int comp, const float* data)
 {
     stbi__write_context s;
@@ -581,79 +573,9 @@ STBIWDEF int stbi_write_hdr(char const* filename, int x, int y, int comp, const 
         return 0;
 }
 
-#endif // STBI_WRITE_NO_STDIO
+#include "image_hdr.h"
 
-#include <unistd.h>
-#include <getopt.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <errno.h>
-
-static void write_callback(void* context, void* data, int size)
+int image_hdr_save_r32(const char* filename, int width, int height, float* f32data)
 {
-
-}
-
-#define PRINT_ERR(msg, ...) { fprintf(stderr, msg, ##__VA_ARGS__); fprintf(stderr, ": %s\n", strerror(errno)); }
-#define PRINT_ERR_EXIT(msg, ...) { PRINT_ERR(msg, ##__VA_ARGS__); exit(EXIT_FAILURE); }
-
-struct raw_header
-{
-    unsigned long width, height;
-};
-
-static size_t file_read(const char* restrict filename, struct raw_header* header, void** restrict output)
-{
-    FILE* ifs = fopen("mandelbrot.raw", "rb");
-    if (!ifs)
-    {
-        PRINT_ERR_EXIT("Can't open the file")
-    }
-
-    fread(header, sizeof(struct raw_header), 1, ifs);
-
-    size_t file_size = header->width * header->width * 4;
-
-    *output = malloc(file_size);
-
-    if (!(*output))
-    {
-        PRINT_ERR_EXIT("[file_read] malloc failed")
-    }
-
-    size_t read = fread(*output, 1, file_size, ifs);
-
-    if (read != file_size)
-    {
-        PRINT_ERR_EXIT("[file_read] fread has read not all bytes in stream read = %lu != total = %lu", read, file_size);
-    }
-
-    if (ferror(ifs))
-    {
-        PRINT_ERR_EXIT("[file_read] fread error");
-    }
-
-    fclose(ifs);
-
-    return file_size;
-}
-
-#define PRINT_PARAMETER(key, value, ...) { fprintf(stdout, "%-15s: ", key); fprintf(stdout, value, ##__VA_ARGS__); fprintf(stdout, "\n"); }
-
-int main(int argc, const char* argv[])
-{
-    struct raw_header header;
-    float* data;
-    size_t size = file_read("mandelbrot.raw", &header, (void**) &data);
-    PRINT_PARAMETER("INPUT DIM", "%lux%lu", header.width, header.height);
-    PRINT_PARAMETER("INPUT SIZE", "%lu Bytes / %lu KiB / %lu MiB", size, size / 1024, size / 1024 / 1024);
-
-    if (!stbi_write_hdr("mandelbrot.hdr", header.width, header.height, 1, data))
-    {
-        PRINT_ERR_EXIT("Can't convert to hdr");
-    }
-
-    PRINT_PARAMETER("OUTPUT FILE", "mandelbrot.hdr");
-    return 0;
+    return !stbi_write_hdr(filename, width, height, 1, f32data);
 }

@@ -2,28 +2,23 @@
 
 #include <string.h>
 #include <stdint.h>
-#include "utils.h"
+#include <mdb/tools/utils.h>
+#include <mdb/tools/log.h>
 
 #define NANOSECONDS_IN_SECOND 1000000000
 #define NANOSECONDS_IN_MILLISECOND 1000000
 
-
-/*
- * Use __always_inline instead of inline to avoid linkage errors
- * due to function body declaration in a header file
- */
-
-__always_inline double ns_to_sec(uint64_t ns)
+__always_inline static double ns_to_sec(uint64_t ns)
 {
     return (double)ns / NANOSECONDS_IN_SECOND;
 }
 
-__always_inline double ns_to_ms(uint64_t ns)
+__always_inline static double ns_to_ms(uint64_t ns)
 {
     return (double)ns / NANOSECONDS_IN_MILLISECOND;
 }
 
-__always_inline double timespec_get_total_sec(const struct timespec* ts)
+__always_inline static double timespec_get_total_sec(const struct timespec* ts)
 {
     if (ts->tv_sec == 0)
         return (double) ts->tv_nsec / NANOSECONDS_IN_SECOND;
@@ -36,20 +31,20 @@ __always_inline double timespec_get_total_sec(const struct timespec* ts)
 }
 
 
-__always_inline double sample_timer(void)
+__always_inline static double sample_timer(void)
 {
     struct timespec tm;
 
     if(clock_gettime(CLOCK_MONOTONIC, &tm))
     {
-        LOG_ERROR("[clock_gettime] failed to take the time and switched to fallback")
+        LOG_ERROR("Failed to take the time and switched to fallback");
     }
 
     return timespec_get_total_sec(&tm);
 
 }
 
-__always_inline uint64_t timespec_get_total_ns(const struct timespec* ts)
+__always_inline static uint64_t timespec_get_total_ns(const struct timespec* ts)
 {
     if (ts->tv_sec == 0)
         return (uint64_t)ts->tv_nsec;
@@ -66,28 +61,28 @@ typedef struct
 
 } perf_timer;
 
-__always_inline void perf_timer_init(perf_timer* tm)
+__always_inline static void perf_timer_init(perf_timer* tm)
 {
     memset(tm, 0, sizeof(perf_timer));
 }
 
-__always_inline void perf_timer_start(perf_timer* tm)
+__always_inline static void perf_timer_start(perf_timer* tm)
 {
     if(clock_gettime(CLOCK_MONOTONIC, &tm->start))
     {
-        LOG_WARNING("[perf_timer_start] failed to take the time and switched to fallback")
+        LOG_WARN("Failed to take the time and switched to fallback");
     }
 }
 
-__always_inline void perf_timer_stop(perf_timer* tm)
+__always_inline static void perf_timer_stop(perf_timer* tm)
 {
     if(clock_gettime(CLOCK_MONOTONIC, &tm->end))
     {
-        LOG_WARNING("[perf_timer_stop] failed to take the time and switched to fallback")
+        LOG_WARN("Failed to take the time and switched to fallback");
     }
 }
 
-__always_inline uint64_t perf_timer_diff_ns(const perf_timer* tm)
+__always_inline static uint64_t perf_timer_diff_ns(const perf_timer* tm)
 {
     uint64_t total_start = timespec_get_total_ns(&tm->start);
     uint64_t total_end   = timespec_get_total_ns(&tm->end);
@@ -97,7 +92,7 @@ __always_inline uint64_t perf_timer_diff_ns(const perf_timer* tm)
     return diff;
 }
 
-__always_inline double perf_timer_diff_sec(const perf_timer* tm)
+__always_inline static double perf_timer_diff_sec(const perf_timer* tm)
 {
     double total_start  = timespec_get_total_sec(&tm->start);
     double total_end    = timespec_get_total_sec(&tm->end);

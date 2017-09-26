@@ -1,16 +1,16 @@
 
-; calling conversions
+; Calling conversions. Taken from UNIX x86-64 ABI.
 ; RDI, RSI, RDX, RCX, R8, and R9
 ; RAX, R10 and R11 are available for use by the function without saving.
 ; Return value is stored in RAX and RDX
 ; Floating-point arguments are passed in XMM0 to XMM7
-;If the callee wishes to use registers RBP, RBX, and R12–R15, it must restore
-;- their original values before returning control to the caller
-;If the callee is a variadic function, then the number of floating point
-;- arguments passed to the function in vector registers must be provided by
-;- the caller in the RAX register.
-;%rax temporary register; with variable arguments
-;passes information about the number of vector
+; If the callee wishes to use registers RBP, RBX, and R12–R15, it must restore
+; - their original values before returning control to the caller
+; If the callee is a variadic function, then the number of floating point
+; - arguments passed to the function in vector registers must be provided by
+; - the caller in the RAX register.
+; %rax temporary register; with variable arguments
+; passes information about the number of vector
 
 ;------------------------------------------------------------------------------------
 ; Regi      ;                                                   ; Preserved across  ;
@@ -547,7 +547,7 @@ mdb_asm_kernel_process_block:
 %define v_tmp0      ymm15
 %define v_tmp0_l    xmm15
 
-    ;enter %$localsize, 0
+    ; setup stack frame
     push rbp
     mov rbp,rsp
 
@@ -558,7 +558,7 @@ mdb_asm_kernel_process_block:
     push r12
     push r11
 
-    sub rsp,256
+    ;sub rsp,256
 
     ; Initialize data
     mov output,[output_ptr]
@@ -719,14 +719,6 @@ mdb_asm_kernel_process_block:
     lea tmp0,[output + rax] ; tmp0 = output[y*4*stride+x*4]
     vmovups [tmp0],v_i
 
-    ;vmovups [rsp],v_i
-
-    ;mov tmp1_d,dword[rsp]
-    ;mov [tmp0],tmp1_d
-
-
-
-
     add x,8
     cmp x,x1
     jle .loop_x
@@ -737,7 +729,7 @@ mdb_asm_kernel_process_block:
     cmp y,y1
     jle .loop_y
 
-    add rsp,256
+    ;add rsp,256
     pop r11
     pop r12
     pop r13

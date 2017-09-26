@@ -12,6 +12,7 @@
 #include <stdbool.h>
 #include <mdb/tools/utils.h>
 #include <mdb/tools/timer.h>
+#include <mdb/tools/log.h>
 
 #define PBO_SIZE_MULTIPLIER 8
 
@@ -20,8 +21,7 @@ static char* file_read_shader_source(const char* filename)
     FILE* in = fopen(filename, "rb");
     if (in == NULL)
     {
-        fprintf(stderr, "Failed to open the file '%s': %s", filename, strerror(errno));
-        fflush(stderr);
+        LOG_ERROR("Failed to open the file '%s': %s", filename, strerror(errno));
         return NULL;
     }
 
@@ -54,7 +54,7 @@ static void print_shader_log(const char* text, GLuint object)
     else if (glIsProgram(object))
         glGetProgramiv(object, GL_INFO_LOG_LENGTH, &log_length);
     else {
-        fprintf(stderr, "print_shader_log: Not a shader or a program\n");
+        LOG_ERROR("Not a shader or a program '%s'", text);
         return;
     }
 
@@ -62,7 +62,7 @@ static void print_shader_log(const char* text, GLuint object)
     if(log_length == 0)
     {
 #if !defined(NDEBUG)
-        fprintf(stdout, "%s: OK\n", text);
+        LOG_DEBUG("%s: OK\n", text);
 #else
         UNUSED_PARAM(text);
 #endif
@@ -76,7 +76,7 @@ static void print_shader_log(const char* text, GLuint object)
     else if (glIsProgram(object))
         glGetProgramInfoLog(object, log_length, NULL, log);
 
-    fprintf(stderr, "%s", log);
+    LOG_ERROR("%s", log);
     free(log);
 }
 
@@ -145,7 +145,7 @@ static void error_callback(int error, const char* description)
 {
     UNUSED_PARAM(error);
 
-    fprintf(stderr, "Error: %s\n", description);
+    LOG_ERROR("Error: %s", description);
 }
 
 
@@ -261,7 +261,7 @@ static void resize_pbo(struct pbo_t* pbo, uint32_t width, uint32_t height)
 {
     //FIXME spurious corruption on resize
 
-    LOG_DEBUG("[resize_pbo] enter");
+    LOG_DEBUG("enter");
 
     glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
     glBindTexture(GL_TEXTURE_2D, 0);
@@ -293,7 +293,7 @@ static void resize_pbo(struct pbo_t* pbo, uint32_t width, uint32_t height)
 
     LockBuffer(&gSyncObject);
 
-    LOG_DEBUG("[resize_pbo] leave");
+    LOG_DEBUG("leave");
 }
 
 static void APIENTRY openglCallbackFunction(
@@ -307,9 +307,9 @@ static void APIENTRY openglCallbackFunction(
 ){
     (void)source; (void)type; (void)id;
     (void)severity; (void)length; (void)userParam;
-    fprintf(stderr, "%s\n", message);
+    LOG_DEBUG("%s", message);
     if (severity==GL_DEBUG_SEVERITY_HIGH) {
-        fprintf(stderr, "GL DECIDED TO ABORT...\n");
+        LOG_ERROR("GL DECIDED TO ABORT...");
         abort();
     }
 }
@@ -402,14 +402,14 @@ void ogl_render_create(ogl_render** _rend, uint32_t width, uint32_t height, data
     glfwSetWindowSizeLimits(rend->window, 640, 480, GLFW_DONT_CARE, GLFW_DONT_CARE);
     glfwSetKeyCallback(rend->window, key_callback);
 
-    //FIXME disabled doe to spurious buffer storage corruption on resize
+    //FIXME disabled due to spurious buffer storage corruption on resize
     //glfwSetWindowSizeCallback(rend->window, &resize_callback);
 
     glfwMakeContextCurrent(rend->window);
 
     if (!gladLoadGLLoader((GLADloadproc) glfwGetProcAddress))
     {
-        fprintf(stderr, "Failed to initialize OpenGL context\n");
+        LOG_ERROR("Failed to initialize OpenGL context");
         exit(EXIT_FAILURE);
     }
 
@@ -426,11 +426,11 @@ void ogl_render_create(ogl_render** _rend, uint32_t width, uint32_t height, data
     glfwSwapInterval(0);
 
     //printf("OpenGL %d.%d\n", GLVersion.major, GLVersion.minor);
-    printf("OpenGL %s, GLSL %s\n", glGetString(GL_VERSION), glGetString(GL_SHADING_LANGUAGE_VERSION));
+    LOG_INFO("OpenGL %s, GLSL %s", glGetString(GL_VERSION), glGetString(GL_SHADING_LANGUAGE_VERSION));
 
     if(!(GLVersion.major >= 4 && GLVersion.minor >= 4))
     {
-        fprintf(stderr, "Unsupported OpenGL version.\nOpenGL 4.4 and above required.");
+        LOG_ERROR("Unsupported OpenGL version. OpenGL 4.4 and above required.");
         exit(EXIT_FAILURE);
     }
 

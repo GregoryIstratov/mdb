@@ -6,6 +6,7 @@
 #include <pthread.h>
 #include <mdb/tools/utils.h>
 #include <mdb/tools/atomic_x86.h>
+#include <mdb/tools/log.h>
 
 enum
 {
@@ -63,14 +64,14 @@ void rsched_create(rsched** psched, uint32_t workers)
     int ret = 0;
     if((ret = pthread_cond_init(&sched->cond, NULL)))
     {
-        LOG_ERROR("[rsched_create] [pthread_cond_init]: %s", strerror(ret));
+        LOG_ERROR("[pthread_cond_init]: %s", strerror(ret));
         exit(EXIT_FAILURE);
     }
 
 
     if((ret = pthread_mutex_init(&sched->mtx, NULL)))
     {
-        LOG_ERROR("[rsched_create] [pthread_mutex_init]: %s", strerror(ret));
+        LOG_ERROR("[pthread_mutex_init]: %s", strerror(ret));
         exit(EXIT_FAILURE);
     }
 
@@ -90,7 +91,7 @@ void rsched_create(rsched** psched, uint32_t workers)
 
         if((ret = pthread_create(&sched->worker_threads[i], NULL, &rsched_worker, sched)))
         {
-            LOG_ERROR("[rsched_create] [pthread_create]: %s", strerror(ret));
+            LOG_ERROR("[pthread_create]: %s", strerror(ret));
             exit(EXIT_FAILURE);
         }
 
@@ -100,7 +101,7 @@ void rsched_create(rsched** psched, uint32_t workers)
 
         if((ret = pthread_setname_np(sched->worker_threads[i], name)))
         {
-            LOG_ERROR("[rsched_create] [pthread_setname_np]: %s", strerror(ret));
+            LOG_ERROR("[pthread_setname_np]: %s", strerror(ret));
             exit(EXIT_FAILURE);
         }
     }
@@ -205,7 +206,7 @@ static void rsched_queue_resize(rsched* sched, uint32_t queue_len, int flags)
     }
     else
     {
-        LOG_ERROR("[rsched_queue_resize] unknown flags");
+        LOG_ERROR("Unknown flags");
     }
 }
 
@@ -216,11 +217,6 @@ void rsched_yield(rsched* sched, uint32_t caller)
 
     if(caller == RENDER_SCHED_ROOT)
     {
-
-#if defined(RSCHED_DEBUG_DETAIL)
-        LOG_DEBUG("[rsched_yield] Main thread yield");
-#endif
-
         if(!rsched_check_workers_state(sched, RC_WORKER_SLEEP))
         {
             LOG_ERROR("[rsched_yield] Serious bug discovered! "
@@ -236,18 +232,10 @@ void rsched_yield(rsched* sched, uint32_t caller)
             pthread_cond_wait(&sched->cond, &sched->mtx);
         }
 
-#if defined(RSCHED_DEBUG_DETAIL)
-        LOG_DEBUG("[rsched_yield] Main thread waken up");
-#endif
-
     }
     else if(caller == RENDER_SCHED_WORKER)
     {
         int this_worker = rsched_get_worker_id(sched, pthread_self());
-
-#if defined(RSCHED_DEBUG_DETAIL)
-        LOG_DEBUG("[rsched_yield] [%i] worker yields", this_worker);
-#endif
 
         sched->worker_info[this_worker].state = RC_WORKER_SLEEP;
 
@@ -260,15 +248,10 @@ void rsched_yield(rsched* sched, uint32_t caller)
         }
 
         sched->worker_info[this_worker].state = RC_WORKER_RUNNING;
-
-#if defined(RSCHED_DEBUG_DETAIL)
-        LOG_DEBUG("[rsched_yield] [%i] worker waken up", this_worker);
-#endif
-
     }
     else
     {
-        LOG_ERROR("[rsched_yield] Unknown caller id: %u", caller);
+        LOG_ERROR("Unknown caller id: %u", caller);
         exit(EXIT_FAILURE);
     }
 
@@ -280,7 +263,7 @@ void rsched_push(rsched* sched, uint32_t x0, uint32_t x1, uint32_t y0, uint32_t 
     if(sched->queue_top >= sched->queue_len)
     {
         uint32_t ext_len = sched->queue_len / 4;
-        LOG_WARNING("[rsched_push] attempt to out of range access, element {%i, %i, %i, %i}. Extending queue [%i]->[%i]\n",
+        LOG_WARN("Detected attempt of out of range accessing to the queue, element {%i, %i, %i, %i}. Extending queue [%i]->[%i]\n",
                 x0, x1, y0, y1,
                 sched->queue_len, sched->queue_len + ext_len);
 

@@ -1,13 +1,18 @@
 #include "mdb_kernel.h"
 #include <stdlib.h>
 #include <dlfcn.h>
+#include <string.h>
 #include <stdint.h>
-#include <immintrin.h>
 #include <stdalign.h>
+
+#include <immintrin.h>
+
 #include <mdb/tools/utils.h>
+#include <mdb/tools/log.h>
+
 #include <mdb/kernel/bits/mdb_kernel.h>
 #include <mdb/kernel/asm/mdb_asm_kernel.h>
-#include <string.h>
+
 
 
 static void mdb_kernel_init(mdb_kernel* mdb);
@@ -18,13 +23,13 @@ static int mdb_kernel_ext_load(mdb_kernel* mdb, const char* ext_kernel)
 #define KRN_CHECK_RESOLV  \
     if ((error = dlerror()) != NULL) \
     { \
-        LOG_ERROR("[mdb_kernel_ext_load] Error on symbol resolving: %s", error); \
+        LOG_ERROR("Error on symbol resolving: %s", error); \
         return -1; \
     }
 
     if(!ext_kernel)
     {
-        LOG_ERROR("[mdb_kernel_ext_load] Kernel name is not set.");
+        LOG_ERROR("Kernel name is not set.");
         return -1;
     }
 
@@ -43,7 +48,7 @@ static int mdb_kernel_ext_load(mdb_kernel* mdb, const char* ext_kernel)
     handle = dlopen(filename, RTLD_LAZY);
     if(!handle)
     {
-        LOG_ERROR("[mdb_kernel_ext_load] Failed to load kernel '%s': %s", ext_kernel, dlerror());
+        LOG_ERROR("Failed to load kernel '%s': %s", ext_kernel, dlerror());
         return -1;
     }
 
@@ -137,11 +142,11 @@ int mdb_kernel_create(mdb_kernel** pmdb, int kernel_type, const char* ext_kernel
             }
             else
             {
-                LOG_ERROR("Your CPU doesn't support needed features [avx2,fma] to run this kernel")
+                LOG_ERROR("Your CPU doesn't support needed features [avx2,fma] to run this kernel");
                 goto error_exit;
             }
 #else
-            LOG_ERROR("Kernel [avx2_fma] is not enabled at build.")
+            LOG_ERROR("Kernel [avx2_fma] is not enabled at build.");
             goto error_exit;
 #endif
         }
@@ -175,11 +180,11 @@ int mdb_kernel_create(mdb_kernel** pmdb, int kernel_type, const char* ext_kernel
             }
             else
             {
-                LOG_ERROR("Your CPU doesn't support needed features [avx2] to run this kernel")
+                LOG_ERROR("Your CPU doesn't support needed features [avx2] to run this kernel");
                 goto error_exit;
             }
 #else
-            LOG_ERROR("Kernel [avx2] is not enabled at build.")
+            LOG_ERROR("Kernel [avx2] is not enabled at build.");
             goto error_exit;
 #endif
         }
@@ -194,7 +199,7 @@ int mdb_kernel_create(mdb_kernel** pmdb, int kernel_type, const char* ext_kernel
             mdb->block_fun = &mdb_kernel_process_block_native;
             break;
 #else
-            LOG_ERROR("Kernel [native] is not enabled at build.")
+            LOG_ERROR("Kernel [native] is not enabled at build.");
             goto error_exit;
 #endif
         }

@@ -10,6 +10,10 @@
 #include <mdb/core/benchmark.h>
 #include <mdb/core/render.h>
 #include <mdb/kernel/asm/mdb_asm_kernel.h>
+#include <mdb/tools/log.h>
+
+#include <mdb/tools/image/image_hdr.h>
+#include <locale.h>
 
 static const char* render_control_keys =
 "Arrows  - Move Up/Down/Left/Right\n"
@@ -65,9 +69,9 @@ static float* surface_create(int width, int height)
     if (res)
     {
         if (ENOMEM == res)
-        LOG_ERROR("There was insufficient memory available to satisfy the request.")
+            LOG_ERROR("There was insufficient memory available to satisfy the request.");
         if (EINVAL == res)
-        LOG_ERROR("alignment is not a power of two multiple of sizeof (void *).")
+            LOG_ERROR("Alignment is not a power of two multiple of sizeof (void *).");
 
         exit(EXIT_FAILURE);
     }
@@ -90,14 +94,16 @@ int main(int argc, char** argv)
     struct arguments args;
     args_parse(argc, argv, &args);
 
+    log_init(LOGLEVEL_ALL, NULL);
+
     int threads;
     if(args.threads <= -1)
     {
         int nproc = get_nprocs_conf();
         int nproc_avail = get_nprocs();
-        fprintf(stdout, "This system has %d processors configured and "
-                       "%d processors available.\n",
+        LOG_SAY("This system has %d processors configured and %d processors available.",
                nproc, nproc_avail);
+
         threads = (uint32_t) get_nprocs();
     }
     else
@@ -117,31 +123,46 @@ int main(int argc, char** argv)
     if(mdb_kernel_create(&kernel, args.kernel_type, args.kernel_name) != 0)
     {
         LOG_ERROR("Cannot create the kernel");
+        log_shutdown();
         exit(EXIT_FAILURE);
     }
 
     rsched* sched;
     rsched_create(&sched, (uint32_t) threads);
-    rsched_create_tasks(sched, args.width, args.height, &args.block_size);
-    PARAM_DEBUG("Enqueued tasks", "%u", rsched_enqueued_tasks(sched));
+    rsched_create_tasks(sched, (uint32_t) args.width, (uint32_t) args.height, &args.block_size);
+    LOG_DEBUG("Enqueued tasks %u", rsched_enqueued_tasks(sched));
 
     if(args.mode == MODE_BENCHMARK || args.mode == MODE_ONESHOT)
     {
         float* surface = surface_create(args.width, args.height);
 
         mdb_kernel_set_surface(kernel, surface);
-        mdb_kernel_set_bailout(kernel, args.bailout);
-        mdb_kernel_set_size(kernel, args.width, args.height);
+        mdb_kernel_set_bailout(kernel, (uint32_t) args.bailout);
+        mdb_kernel_set_size(kernel, (uint32_t) args.width, (uint32_t) args.height);
 
         benchmark* bench = NULL;
-        benchmark_create(&bench, (uint32_t) args.benchmark_runs, kernel, sched);
+        uint32_t runs = args.mode == MODE_ONESHOT ? 1 : (uint32_t)args.benchmark_runs;
+        benchmark_create(&bench, runs, kernel, sched);
 
-        fprintf(stdout, "Running benchmark...\n");
-        fflush(stdout);
+        if(args.mode == MODE_BENCHMARK)
+            LOG_SAY("Running benchmark...");
 
         benchmark_run(bench);
 
         benchmark_print_summary(bench);
+
+        if(args.mode == MODE_ONESHOT)
+        {
+            errno = 0;
+            if (image_hdr_save_r32(args.output_file, args.width, args.height, surface))
+            {
+                LOG_ERROR("Failed to save surface to '%s', errno: %s", args.output_file, strerror(errno));
+            }
+            else
+            {
+                LOG_SAY("Image saved to '%s'", args.output_file);
+            }
+        }
 
         surface_destroy(surface);
 
@@ -158,7 +179,7 @@ int main(int argc, char** argv)
 
     rsched_shutdown(sched);
     mdb_kernel_destroy(kernel);
-
+    log_shutdown();
 
     return 0;
 }
