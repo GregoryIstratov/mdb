@@ -3,7 +3,10 @@
 #include <stdint.h>
 
 #include <mdb/config/config.h>
+
+#if defined(MDB_ENABLE_EXTERNAL_KERNEL_SUPPORT)
 #include <mdb/kernel/external/mdb_kernel_ext.h>
+#endif
 
 typedef float mdb_float_t;
 
@@ -36,6 +39,7 @@ struct _mdb_kernel
      * */
     mdb_block_fun block_fun;
 
+#if defined(MDB_ENABLE_EXTERNAL_KERNEL_SUPPORT)
     /* External kernels API.
      * External kernels can have various
      * internal structures and algorithms inside
@@ -56,6 +60,7 @@ struct _mdb_kernel
 
     /* Dynamic kernel handle */
     void* dl_handle;
+#endif
 
     /* Misc properties */
     int kernel_type;

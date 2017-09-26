@@ -3,11 +3,13 @@
 
 #include <mdb/sched/rsched.h>
 #include <mdb/kernel/mdb_kernel.h>
-#include <mdb/render/ogl_render.h>
 #include <mdb/tools/utils.h>
 #include <string.h>
 #include <mdb/tools/log.h>
 
+#if defined(OGL_RENDER_ENABLED)
+#include <mdb/render/ogl_render.h>
+#endif
 
 struct render_ctx
 {
@@ -205,6 +207,7 @@ void render_run(rsched* sched, mdb_kernel* kernel, struct arguments* args)
 
     rsched_set_proc_fun(sched, &render_kernel_proc_fun, &ctx);
 
+#if defined(OGL_RENDER_ENABLED)
     ogl_render* rend;
     ogl_render_create(&rend, ctx.width, ctx.height, &render_update, &ctx, &render_key_callback);
     ogl_render_set_resize_callback(rend, &render_resize);
@@ -213,5 +216,6 @@ void render_run(rsched* sched, mdb_kernel* kernel, struct arguments* args)
     ogl_render_render_loop(rend);
 
     ogl_render_destroy(rend);
+#endif
 }
 

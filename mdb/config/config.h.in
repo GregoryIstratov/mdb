@@ -7,7 +7,9 @@
  * features that you want to enable like AVX and FMA
  */
 
-/* Logging parameters */
+/* ---------------------------------------------------
+ * Logging parameters
+ * -------------------------------------------------*/
 
 /* Show time of a log record */
 #cmakedefine LOG_SHOW_TIME
@@ -25,6 +27,10 @@
 
 /* If enabled protect logging functions with a mutex */
 #cmakedefine LOG_ENABLE_MULTITHREADING
+
+/* ---------------------------------------------------
+ * Kernel parameters
+ * -------------------------------------------------*/
 
 /* Turn on debugging in the kernel.
  * This may lead to a huge performance impact and a massive verbose output.
@@ -53,10 +59,47 @@
  * This kernel uses the same code as 'generic' kernel, but the difference is in
  * for the generic kernel compiler disables all CPU extensions sse,avx,fma,etc and builds it
  * with using x87 coprocessor math instead of default for x86-64 - sse math.
- * Thus 'native' kernel performance is an example of how compiler may optimise code for specific CPU.
- * But both kernels shares all other compiler flags like -O3 -ffast-math, etc, so 'native' kernel
+ * Thus 'native' kernel performance is an example of how compiler can optimise code for a specific CPU.
+ * But both kernels shares other compiler flags like -O3 -ffast-math, etc, so 'native' kernel
  * shows only how compiler uses vectorisation for optimisations.
  */
 #cmakedefine MDB_ENABLE_NATIVE_KERNEL
 
+/* Enable building a kernel that is written in x86 assembly using NASM
+ * This kernel requires NASM compiller available in /usr/bin/nasm
+ * and CPU with AVX2,FMA support.
+ * It also requares external kernel support.
+ */
 #cmakedefine MDB_ENABLE_AVX_FMA_ASM_KERNEL
+
+/* Enable external kernel support.
+ * This means program can load dynamically kernel in runtime
+ * using specified API described in mdb/kernel/external/mdb_kernel_ext.h
+ * It allows using third-party kernels with the programm without a need for
+ * recompiling and change sources.
+ * External kernel sources located in mdb/kernel/external/kernels/
+ * and should be one C source file in this folder per kernel with unique name
+ * which later will be used to load these kernel with --kernel option.
+ * Build system scans mdb/kernel/external/kernels/ for all *.c files
+ * and makes a module ( shared object ) per one file it finds.
+ * External kernel process function must be thread-safe because usually
+ * program runs using maximum available hardware threads ( if user not specified it by himself )
+ * and scheduler devides work to small pieces of work and invokes process-functions simultaneously
+ * on all available worker threads.
+ * Example of external kernel available in mdb/kernel/external/kernels/ext_avx2_fma.c
+ * and can be used as reference to make other kernels.
+ */
+#cmakedefine MDB_ENABLE_EXTERNAL_KERNEL_SUPPORT
+
+/* ---------------------------------------------------
+ * Render parameters
+ * -------------------------------------------------*/
+
+/* Enable building render engine based on OpenGL 4.4.
+ * The main advantage of using this engine is persistent buffer mapping
+ * available since version 4.4 of OpenGL.
+ * Persistent buffer mapping reduces overhead on transfering memory from
+ * CPU to GPU.
+ * It potentyaly gives better performance on CPU kernels.
+ */
+#cmakedefine OGL_RENDER_ENABLED

@@ -21,32 +21,6 @@ set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O3 -DNDEBUG -s -flto -ffast
 include_directories(mdb/render/glad/include/)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
-if ("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
-    message("Detected build type - ${CMAKE_BUILD_TYPE}")
-
-    set(NASM_EXTRA_FLAGS "-gdwarf")
-    set(KERNEL_LINK_EXTRA_FLAGS "")
-    set(NASM_BUILD_DIR "${CMAKE_CURRENT_SOURCE_DIR}/mdb/kernel/asm/bin/debug")
-elseif(${CMAKE_BUILD_TYPE} STREQUAL Release)
-    message("Detected build type - ${CMAKE_BUILD_TYPE}")
-    set(NASM_EXTRA_FLAGS "-Ox")
-    set(KERNEL_LINK_EXTRA_FLAGS "-s")
-    set(NASM_BUILD_DIR "${CMAKE_CURRENT_SOURCE_DIR}/mdb/kernel/asm/bin/release")
-endif ()
-
-
-add_custom_target(compile_asm_kernel ALL
-        COMMAND /usr/bin/nasm ${NASM_EXTRA_FLAGS} -f elf64
-        -o ${NASM_BUILD_DIR}/mdb_asm_kernel.o
-        ${CMAKE_CURRENT_SOURCE_DIR}/mdb/kernel/asm/mdb_asm_kernel.asm
-        COMMENT "[${CMAKE_BUILD_TYPE}] Compiling mdb_asm_kernel.asm to ${NASM_BUILD_DIR}/mdb_asm_kernel.o ..."
-        VERBATIM
-        )
-
-add_library(mdb_asm_kernel SHARED ${NASM_BUILD_DIR}/mdb_asm_kernel.o)
-set_target_properties(mdb_asm_kernel PROPERTIES LINKER_LANGUAGE C)
-add_dependencies(mdb_asm_kernel compile_asm_kernel)
-
 set(SOURCE_FILES
         mdb/main.c
         mdb/config/config.h
@@ -69,29 +43,80 @@ set(SOURCE_FILES
         mdb/kernel/mdb_kernel.c
         mdb/kernel/mdb_kernel.h
         mdb/kernel/bits/mdb_kernel.h
-        mdb/kernel/bits/mdb_kernel_avx2_fma.c
         mdb/kernel/bits/surface.h
-        mdb/kernel/bits/mdb_kernel_avx2.c
         mdb/kernel/bits/mdb_kernel_common.h
-        mdb/kernel/bits/mdb_kernel_native.c
         mdb/kernel/bits/mdb_kernel_generic.c
-        mdb/kernel/external/mdb_kernel_ext.c
-        mdb/kernel/external/mdb_kernel_ext.h
         )
 
-add_library(ogl_render SHARED mdb/render/glad/src/glad.c mdb/render/ogl_render.c)
-target_link_libraries(ogl_render dl glfw)
+if(MDB_ENABLE_AVX2_FMA_KERNEL)
+    list(APPEND SOURCE_FILES mdb/kernel/bits/mdb_kernel_avx2_fma.c)
+endif()
 
-file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/shaders)
+if(MDB_ENABLE_AVX2_KERNEL)
+    list(APPEND SOURCE_FILES mdb/kernel/bits/mdb_kernel_avx2.c)
+endif()
 
-add_custom_command(
-        TARGET ogl_render POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy
-        ${CMAKE_SOURCE_DIR}/mdb/render/shaders/*
-        ${CMAKE_CURRENT_BINARY_DIR}/shaders/)
+if(MDB_ENABLE_NATIVE_KERNEL)
+    list(APPEND SOURCE_FILES mdb/kernel/bits/mdb_kernel_native.c)
+endif()
+
+if(MDB_ENABLE_EXTERNAL_KERNEL_SUPPORT)
+    list(APPEND SOURCE_FILES
+            mdb/kernel/external/mdb_kernel_ext.c
+            mdb/kernel/external/mdb_kernel_ext.h)
+
+    add_subdirectory(mdb/kernel/external ${CMAKE_CURRENT_BINARY_DIR}/kernels)
+endif()
+
 
 add_executable(mandelbrot ${SOURCE_FILES})
-target_link_libraries(mandelbrot pthread ogl_render mdb_asm_kernel)
+target_link_libraries(mandelbrot pthread)
 
-add_subdirectory(mdb/kernel/external ${CMAKE_CURRENT_BINARY_DIR}/kernels)
+if(MDB_ENABLE_EXTERNAL_KERNEL_SUPPORT)
+    target_link_libraries(mandelbrot dl)
+endif()
+
+if(OGL_RENDER_ENABLED)
+    add_library(ogl_render SHARED mdb/render/glad/src/glad.c mdb/render/ogl_render.c)
+    target_link_libraries(ogl_render dl glfw)
+
+    file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/shaders)
+    add_custom_command(
+            TARGET ogl_render POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy
+            ${CMAKE_SOURCE_DIR}/mdb/render/shaders/*
+            ${CMAKE_CURRENT_BINARY_DIR}/shaders/)
+
+    target_link_libraries(mandelbrot ogl_render)
+endif()
+
+if(MDB_ENABLE_AVX_FMA_ASM_KERNEL)
+    if ("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
+        message("Detected build type - ${CMAKE_BUILD_TYPE}")
+
+        set(NASM_EXTRA_FLAGS "-gdwarf")
+        set(KERNEL_LINK_EXTRA_FLAGS "")
+        set(NASM_BUILD_DIR "${CMAKE_CURRENT_SOURCE_DIR}/mdb/kernel/asm/bin/debug")
+    elseif(${CMAKE_BUILD_TYPE} STREQUAL Release)
+        message("Detected build type - ${CMAKE_BUILD_TYPE}")
+        set(NASM_EXTRA_FLAGS "-Ox")
+        set(KERNEL_LINK_EXTRA_FLAGS "-s")
+        set(NASM_BUILD_DIR "${CMAKE_CURRENT_SOURCE_DIR}/mdb/kernel/asm/bin/release")
+    endif ()
+
+
+    add_custom_target(compile_asm_kernel ALL
+            COMMAND /usr/bin/nasm ${NASM_EXTRA_FLAGS} -f elf64
+            -o ${NASM_BUILD_DIR}/mdb_asm_kernel.o
+            ${CMAKE_CURRENT_SOURCE_DIR}/mdb/kernel/asm/mdb_asm_kernel.asm
+            COMMENT "[${CMAKE_BUILD_TYPE}] Compiling mdb_asm_kernel.asm to ${NASM_BUILD_DIR}/mdb_asm_kernel.o ..."
+            VERBATIM
+            )
+
+    add_library(mdb_asm_kernel SHARED ${NASM_BUILD_DIR}/mdb_asm_kernel.o)
+    set_target_properties(mdb_asm_kernel PROPERTIES LINKER_LANGUAGE C)
+    add_dependencies(mdb_asm_kernel compile_asm_kernel)
+
+    target_link_libraries(mandelbrot mdb_asm_kernel)
+endif()
 

@@ -2,14 +2,11 @@
 #include <errno.h>
 #include <sys/sysinfo.h>
 
-#include <mdb/tools/utils.h>
 #include <mdb/tools/args_parser.h>
 #include <mdb/kernel/mdb_kernel.h>
-#include <mdb/sched/rsched.h>
 #include <string.h>
 #include <mdb/core/benchmark.h>
 #include <mdb/core/render.h>
-#include <mdb/kernel/asm/mdb_asm_kernel.h>
 #include <mdb/tools/log.h>
 
 #include <mdb/tools/image/image_hdr.h>
@@ -52,6 +49,8 @@ inline static const char* kernel_type_str(int kernel_type)
             return "avx2_fma";
         case MDB_KERNEL_AVX2_FMA_ASM:
             return "avx2_fma_asm";
+        case MDB_KERNEL_EXTERNAL:
+            return "external";
 
         default:
             return "unknown";
@@ -63,7 +62,7 @@ static float* surface_create(int width, int height)
     float* surface = NULL;
     size_t size = (size_t) (width * height);
     size_t mem_size = size * sizeof(float);
-    size_t align = 4096; //make it allocate on a new page
+    size_t align = 4096; //force to allocate it on a new page
 
     int res = posix_memalign((void**) &surface, align, mem_size);
     if (res)
@@ -169,8 +168,13 @@ int main(int argc, char** argv)
     }
     else if(args.mode == MODE_RENDER)
     {
-        LOG_INFO("Starting render mode...\nControl keys:\n%s\n", render_control_keys);
+#if defined(OGL_RENDER_ENABLED)
+        LOG_SAY("Starting render mode...\nControl keys:\n%s\n", render_control_keys);
         render_run(sched, kernel, &args);
+#else
+        UNUSED_PARAM(render_control_keys);
+        LOG_ERROR("OGL Render disabled at the build time.");
+#endif
     }
     else
     {

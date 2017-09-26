@@ -5,11 +5,8 @@
 #include <stdalign.h>
 #include <stdbool.h>
 
-#include <mdb/config/config.h>
 #include <mdb/kernel/bits/surface.h>
 #include <mdb_kernel_ext.h>
-
-#if defined(MDB_ENABLE_AVX2_FMA_KERNEL)
 
 #if !defined(__AVX__)
 #error "AVX is not enabled. Consider set gcc flags -mavx2"
@@ -212,5 +209,3 @@ void mdb_kernel_ext_process_block(uint32_t x0, uint32_t x1, uint32_t y0, uint32_
         }
     }
 }
-
-#endif

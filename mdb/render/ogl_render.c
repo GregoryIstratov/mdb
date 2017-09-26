@@ -305,6 +305,8 @@ static void APIENTRY openglCallbackFunction(
         const GLchar* message,
         const void* userParam
 ){
+    UNUSED_PARAM(message);
+
     (void)source; (void)type; (void)id;
     (void)severity; (void)length; (void)userParam;
     LOG_DEBUG("%s", message);

@@ -2,20 +2,21 @@
 #include <stdlib.h>
 #include <dlfcn.h>
 #include <string.h>
-#include <stdint.h>
-#include <stdalign.h>
-
-#include <immintrin.h>
 
 #include <mdb/tools/utils.h>
 #include <mdb/tools/log.h>
 
 #include <mdb/kernel/bits/mdb_kernel.h>
-#include <mdb/kernel/asm/mdb_asm_kernel.h>
 
+
+#if defined(MDB_ENABLE_AVX_FMA_ASM_KERNEL)
+#include <mdb/kernel/asm/mdb_asm_kernel.h>
+#endif
 
 
 static void mdb_kernel_init(mdb_kernel* mdb);
+
+#if defined(MDB_ENABLE_EXTERNAL_KERNEL_SUPPORT)
 
 static int mdb_kernel_ext_load(mdb_kernel* mdb, const char* ext_kernel)
 {
@@ -123,6 +124,8 @@ static void mdb_kernel_ext_log_info(mdb_kernel* mdb)
     LOG_SAY("---------------------------------");
 }
 
+#endif
+
 int mdb_kernel_create(mdb_kernel** pmdb, int kernel_type, const char* ext_kernel)
 {
     *pmdb = calloc(1, sizeof(mdb_kernel));
@@ -153,6 +156,13 @@ int mdb_kernel_create(mdb_kernel** pmdb, int kernel_type, const char* ext_kernel
 
         case MDB_KERNEL_AVX2_FMA_ASM:
         {
+#if defined(MDB_ENABLE_AVX_FMA_ASM_KERNEL) && defined(MDB_ENABLE_EXTERNAL_KERNEL_SUPPORT)
+            if(!CPU_CHECK_FEATURE("avx2") || !CPU_CHECK_FEATURE("fma"))
+            {
+                LOG_ERROR("Your CPU doesn't support needed features [avx2,fma] to run this kernel");
+                goto error_exit;
+            }
+
             mdb->kernel_type = MDB_KERNEL_EXTERNAL;
 
             mdb->ext_metadata_query_fun = &mdb_asm_kernel_metadata_query;
@@ -168,6 +178,10 @@ int mdb_kernel_create(mdb_kernel** pmdb, int kernel_type, const char* ext_kernel
 
             mdb_kernel_ext_log_info(mdb);
             break;
+#else
+            LOG_ERROR("Kernel [avx2_fma_asm] or external kernel support is not enabled at build.");
+            goto error_exit;
+#endif
         }
 
         case MDB_KERNEL_AVX2:
@@ -206,12 +220,18 @@ int mdb_kernel_create(mdb_kernel** pmdb, int kernel_type, const char* ext_kernel
 
         case MDB_KERNEL_EXTERNAL:
         {
+#if defined(MDB_ENABLE_EXTERNAL_KERNEL_SUPPORT)
             if(mdb_kernel_ext_load(mdb, ext_kernel) != 0)
                 goto error_exit;
 
             mdb_kernel_ext_log_info(mdb);
 
             break;
+#else
+            UNUSED_PARAM(ext_kernel);
+            LOG_ERROR("External kernel support is not enabled at build.");
+            goto error_exit;
+#endif
         }
 
         default:
@@ -236,14 +256,19 @@ error_exit:
 
 static void mdb_kernel_init(mdb_kernel* mdb)
 {
+#if defined(MDB_ENABLE_EXTERNAL_KERNEL_SUPPORT)
     if(mdb->kernel_type == MDB_KERNEL_EXTERNAL)
     {
         mdb->ext_init_fun();
     }
+#else
+    UNUSED_PARAM(mdb);
+#endif
 }
 
 void mdb_kernel_destroy(mdb_kernel* mdb)
 {
+#if defined(MDB_ENABLE_EXTERNAL_KERNEL_SUPPORT)
     if(mdb->kernel_type == MDB_KERNEL_EXTERNAL)
     {
         mdb->ext_shutdown_fun();
@@ -254,6 +279,7 @@ void mdb_kernel_destroy(mdb_kernel* mdb)
             mdb->dl_handle = NULL;
         }
     }
+#endif
 
     free(mdb);
 }
@@ -262,9 +288,13 @@ void mdb_kernel_destroy(mdb_kernel* mdb)
 void mdb_kernel_set_surface(mdb_kernel* mdb, float* f32surface)
 {
     if(mdb->kernel_type != MDB_KERNEL_EXTERNAL)
+    {
         mdb->f32surface = f32surface;
+    }
+#if defined(MDB_ENABLE_EXTERNAL_KERNEL_SUPPORT)
     else
         mdb->ext_set_surface_fun(f32surface);
+#endif
 }
 
 void mdb_kernel_set_size(mdb_kernel* mdb, uint32_t width, uint32_t height)
@@ -277,16 +307,22 @@ void mdb_kernel_set_size(mdb_kernel* mdb, uint32_t width, uint32_t height)
         mdb->height_r = MDB_FLOAT_C(1.0) / height;
         mdb->aspect_ratio = MDB_FLOAT_C(width) / MDB_FLOAT_C(height);
     }
+#if defined(MDB_ENABLE_EXTERNAL_KERNEL_SUPPORT)
     else
         mdb->ext_set_size_fun(width, height);
+#endif
 }
 
 void mdb_kernel_set_scale(mdb_kernel* mdb, float scale)
 {
     if(mdb->kernel_type != MDB_KERNEL_EXTERNAL)
+    {
         mdb->scale = scale;
+    }
+#if defined(MDB_ENABLE_EXTERNAL_KERNEL_SUPPORT)
     else
         mdb->ext_set_scale_fun(scale);
+#endif
 }
 
 void mdb_kernel_set_shift(mdb_kernel* mdb, float shift_x, float shift_y)
@@ -296,28 +332,43 @@ void mdb_kernel_set_shift(mdb_kernel* mdb, float shift_x, float shift_y)
         mdb->shift_x = shift_x;
         mdb->shift_y = shift_y;
     }
+#if defined(MDB_ENABLE_EXTERNAL_KERNEL_SUPPORT)
     else
         mdb->ext_set_shift_fun(shift_x, shift_y);
+#endif
 }
 
 void mdb_kernel_set_bailout(mdb_kernel* mdb, uint32_t bailout)
 {
     if(mdb->kernel_type != MDB_KERNEL_EXTERNAL)
+    {
         mdb->bailout = bailout;
+    }
+#if defined(MDB_ENABLE_EXTERNAL_KERNEL_SUPPORT)
     else
         mdb->ext_set_bailout_fun(bailout);
+#endif
 }
 
 void mdb_kernel_submit_changes(mdb_kernel* mdb)
 {
+#if defined(MDB_ENABLE_EXTERNAL_KERNEL_SUPPORT)
     if(mdb->kernel_type == MDB_KERNEL_EXTERNAL)
         mdb->ext_submit_changes_fun();
+#else
+    UNUSED_PARAM(mdb);
+#endif
 }
 
 void mdb_kernel_process_block(mdb_kernel* mdb, uint32_t x0, uint32_t x1, uint32_t y0, uint32_t y1)
 {
-    if(mdb->kernel_type != MDB_KERNEL_EXTERNAL)
-        mdb->block_fun(mdb, x0, x1, y0, y1);
-    else
+#if defined(MDB_ENABLE_EXTERNAL_KERNEL_SUPPORT)
+    if(mdb->kernel_type == MDB_KERNEL_EXTERNAL)
+    {
         mdb->ext_block_fun(x0, x1, y0, y1);
+        return;
+    }
+#endif
+
+    mdb->block_fun(mdb, x0, x1, y0, y1);
 }

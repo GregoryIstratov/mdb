@@ -1,20 +1,3 @@
-/*************************************************************************************************************
-    This file is part of HWMonitor.
-
-    HWMonitor is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-
-    HWMonitor is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with HWMonitor.  If not, see <http://www.gnu.org/licenses/>.
-*************************************************************************************************************/
-
 #include <pthread.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -25,6 +8,7 @@
 #include <errno.h>
 
 #include "log.h"
+#include "utils.h"
 
 #define LOG_RED   "\x1B[31m"
 #define LOG_GRN   "\x1B[32m"
@@ -155,6 +139,9 @@ void _log(const char* file, int line, const char* fun, int lvl, const char* fmt,
 
 #ifdef LOG_SHOW_PATH
         fprintf(log_sink, " - %s:%i", file, line);
+#else
+        UNUSED_PARAM(file);
+        UNUSED_PARAM(line);
 #endif
         fprintf(log_sink, "\n");
         fflush(log_sink);

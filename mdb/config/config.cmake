@@ -12,22 +12,22 @@
 #======================================================
 
 # Show time of a log record
-set(LOG_SHOW_TIME ON)
+set(LOG_SHOW_TIME On)
 
 # Show date of a log record
-set(LOG_SHOW_DATE ON)
+set(LOG_SHOW_DATE On)
 
 # Show thread ID where logging record is coming from"
-set(LOG_SHOW_THREAD ON)
+set(LOG_SHOW_THREAD On)
 
 # Show a full source file path and a line number
 # where is a log record coming from
 # Useful when debugging
 #
-set(LOG_SHOW_PATH ON)
+set(LOG_SHOW_PATH Off)
 
 # If enabled protect logging functions with a mutex
-set(LOG_ENABLE_MULTITHREADING ON)
+set(LOG_ENABLE_MULTITHREADING On)
 
 #======================================================
 # Kernel parameters                                   #
@@ -36,21 +36,22 @@ set(LOG_ENABLE_MULTITHREADING ON)
 # Turn on debugging in the kernel.
 # This may lead to a huge performance impact and a massive verbose output.
 # Don't enable it unless you know what you're doing.
+# This option has effect only in debug build
 #
-set(MDB_KERNEL_DEBUG OFF)
+set(MDB_KERNEL_DEBUG Off)
 
 # Enable building a kernel that using avx2 and fma instruction sets.
 # Written in intrinsics to maximize performance gain of vectorisation CPU extension.
 # Your CPU and compiler must support AVX2 and FMA features.
 #
-set(MDB_ENABLE_AVX2_FMA_KERNEL ON)
+set(MDB_ENABLE_AVX2_FMA_KERNEL On)
 
 # Enable building a kernel that using avx2 instruction set ( without using FMA )
 # thus this may be slightly slower than that one above which using FMA.
 # This kernel is also written in intrinsics to maximize performance gain of vectorisation CPU extension.
 # Your CPU and compiler must support AVX2 feature.
 #
-set(MDB_ENABLE_AVX2_KERNEL ON)
+set(MDB_ENABLE_AVX2_KERNEL On)
 
 
 # Enable building a kernel that is written in regular way ( plain C without intrinsics )
@@ -61,11 +62,48 @@ set(MDB_ENABLE_AVX2_KERNEL ON)
 # This kernel uses the same code as 'generic' kernel, but the difference is in
 # for the generic kernel compiler disables all CPU extensions sse,avx,fma,etc and builds it
 # with using x87 coprocessor math instead of default for x86-64 - sse math.
-# Thus 'native' kernel performance is an example of how compiler may optimise code for specific CPU.
-# But both kernels shares all other compiler flags like -O3 -ffast-math, etc, so 'native' kernel
+# Thus 'native' kernel performance is an example of how compiler can optimise code for a specific CPU.
+# But both kernels shares other compiler flags like -O3 -ffast-math, etc, so 'native' kernel
 # shows only how compiler uses vectorisation for optimisations.
 #
-set(MDB_ENABLE_NATIVE_KERNEL ON)
+set(MDB_ENABLE_NATIVE_KERNEL On)
 
 
-set(MDB_ENABLE_AVX_FMA_ASM_KERNEL ON)
+# Enable building a kernel that is written in x86 assembly using NASM
+# This kernel requires NASM compiller available in /usr/bin/nasm
+# and CPU with AVX2,FMA support.
+# It also requares external kernel support.
+#
+set(MDB_ENABLE_AVX_FMA_ASM_KERNEL On)
+
+# Enable external kernel support.
+# This means program can load dynamically kernel in runtime
+# using specified API described in mdb/kernel/external/mdb_kernel_ext.h
+# It allows using third-party kernels with the programm without a need for
+# recompiling and change sources.
+# External kernel sources located in mdb/kernel/external/kernels/
+# and should be one C source file in this folder per kernel with unique name
+# which later will be used to load these kernel with --kernel option.
+# Build system scans mdb/kernel/external/kernels/ for all *.c files
+# and makes a module ( shared object ) per one file it finds.
+# External kernel process function must be thread-safe because usually
+# program runs using maximum available hardware threads ( if user not specified it by himself )
+# and scheduler devides work to small pieces of work and invokes process-functions simultaneously
+# on all available worker threads.
+# Example of external kernel available in mdb/kernel/external/kernels/ext_avx2_fma.c
+# and can be used as reference to make other kernels.
+#
+set(MDB_ENABLE_EXTERNAL_KERNEL_SUPPORT On)
+
+#======================================================
+# Render parameters                                   #
+#======================================================
+
+# Enable building render engine based on OpenGL 4.4.
+# The main advantage of using this engine is persistent buffer mapping
+# available since version 4.4 of OpenGL.
+# Persistent buffer mapping reduces overhead on transfering memory from
+# CPU to GPU.
+# It potentyaly gives better performance on CPU kernels.
+#
+set(OGL_RENDER_ENABLED On)
