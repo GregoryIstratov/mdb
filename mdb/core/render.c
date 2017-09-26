@@ -172,7 +172,7 @@ static void render_update(void* data, void* context)
 
     mdb_kernel_set_surface(ctx->kernel, (float*)data);
 
-    rsched_yield(ctx->sched, RENDER_SCHED_ROOT);
+    rsched_yield(ctx->sched, RSCHED_ROOT);
 
     rsched_requeue(ctx->sched);
 }

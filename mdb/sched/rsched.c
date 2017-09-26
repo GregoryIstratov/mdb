@@ -215,7 +215,7 @@ void rsched_yield(rsched* sched, uint32_t caller)
 {
     pthread_mutex_lock(&sched->mtx);
 
-    if(caller == RENDER_SCHED_ROOT)
+    if(caller == RSCHED_ROOT)
     {
         if(!rsched_check_workers_state(sched, RC_WORKER_SLEEP))
         {
@@ -233,7 +233,7 @@ void rsched_yield(rsched* sched, uint32_t caller)
         }
 
     }
-    else if(caller == RENDER_SCHED_WORKER)
+    else if(caller == RSCHED_WORKER)
     {
         int this_worker = rsched_get_worker_id(sched, pthread_self());
 
@@ -355,7 +355,7 @@ static void* rsched_worker(void* arg)
 {
     rsched* sched = (rsched*)arg;
 
-    rsched_yield(sched, RENDER_SCHED_WORKER);
+    rsched_yield(sched, RSCHED_WORKER);
 
     for (;;)
     {
@@ -365,7 +365,7 @@ static void* rsched_worker(void* arg)
         {
             if(unlikely(sched->r_fun == NULL))
             {
-                LOG_ERROR("[rsched_worker] processor function is not set\n");
+                LOG_ERROR("Process function is not set\n");
                 exit(EXIT_FAILURE);
             }
 
@@ -374,7 +374,7 @@ static void* rsched_worker(void* arg)
         }
         else
         {
-            rsched_yield(sched, RENDER_SCHED_WORKER);
+            rsched_yield(sched, RSCHED_WORKER);
         }
     }
 

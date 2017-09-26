@@ -86,7 +86,7 @@ static void benchmark_run_kernel(benchmark* bench)
 
     while(run < runs)
     {
-        rsched_yield(bench->sched, RENDER_SCHED_ROOT);
+        rsched_yield(bench->sched, RSCHED_ROOT);
         rsched_requeue(bench->sched);
 
         ++run;
