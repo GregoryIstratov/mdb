@@ -20,12 +20,12 @@ enum
 };
 
 /* Create scheduler with n workers
- * This scheduler uses static length common queue for tasks
- * that creates and fills at preparation stage and left immutable
+ * This scheduler uses static length common between workers queue for tasks
+ * that is created and fills at preparation stage and left immutable
  * during processing.
- * This allows use compact very fast algorithms with very small overhead
- * to retrieve tasks from the queue and use one queue for all threads
- * it gives a very good load distribution across CPU cores.
+ * This allows using compact and very fast algorithms with very small overhead
+ * to retrieve tasks from the queue and use one common queue for all threads.
+ * It gives a very good uniform load distribution across CPU cores.
  * */
 void rsched_create(rsched** psched, uint32_t workers);
 
