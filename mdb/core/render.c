@@ -11,6 +11,13 @@
 #include <mdb/render/ogl_render.h>
 #endif
 
+static const char* render_control_keys =
+        "Arrows  - Move Up/Down/Left/Right\n"
+                "[1]/[2] - Scale up/down\n"
+                "[3]/[4] - Iterations/bailout increase/decrease\n"
+                "[5]/[6] - Exposure increase/decrease\n";
+
+
 struct render_ctx
 {
     rsched* sched;
@@ -184,28 +191,23 @@ static void render_kernel_proc_fun(uint32_t x0, uint32_t x1, uint32_t y0, uint32
     mdb_kernel_process_block(rend_ctx->kernel, x0, x1, y0, y1);
 }
 
-void render_run(rsched* sched, mdb_kernel* kernel, struct arguments* args)
+int render_run(rsched* sched, mdb_kernel* kernel, uint32_t width, uint32_t height)
 {
     struct render_ctx ctx;
 
-    ctx.bailout = args->bailout;
+    ctx.bailout = 256;
     ctx.scale   = 2.793042f;
     ctx.shift_x = -0.860787f;
     ctx.shift_y = 0.0f;
-    ctx.width   = args->width;
-    ctx.height  = args->height;
-    memcpy(&ctx.grain, &args->block_size, sizeof(args->block_size));
+    ctx.width   = width;
+    ctx.height  = height;
 
     ctx.sched = sched;
     ctx.kernel = kernel;
 
-    mdb_kernel_set_size(kernel, ctx.width, ctx.height);
-    mdb_kernel_set_scale(kernel, ctx.scale);
-    mdb_kernel_set_shift(kernel, ctx.shift_x, ctx.shift_y);
-    mdb_kernel_set_bailout(kernel, ctx.bailout);
-    mdb_kernel_submit_changes(kernel);
-
     rsched_set_proc_fun(sched, &render_kernel_proc_fun, &ctx);
+
+    LOG_SAY("Starting render mode...\nControl keys:\n%s\n", render_control_keys);
 
 #if defined(OGL_RENDER_ENABLED)
     ogl_render* rend;
@@ -216,6 +218,12 @@ void render_run(rsched* sched, mdb_kernel* kernel, struct arguments* args)
     ogl_render_render_loop(rend);
 
     ogl_render_destroy(rend);
+#else
+    UNUSED_PARAM(render_control_keys);
+    LOG_ERROR("OGL Render disabled at the build time.");
+    return -1;
 #endif
+
+    return 0;
 }
 

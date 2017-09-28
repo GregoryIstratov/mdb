@@ -573,9 +573,11 @@ STBIWDEF int stbi_write_hdr(char const* filename, int x, int y, int comp, const 
         return 0;
 }
 
+
 #include "image_hdr.h"
 
-int image_hdr_save_r32(const char* filename, int width, int height, float* f32data)
+
+int image_hdr_save_r32(const char* filename, uint32_t width, uint32_t height, float* f32data)
 {
     return !stbi_write_hdr(filename, width, height, 1, f32data);
 }

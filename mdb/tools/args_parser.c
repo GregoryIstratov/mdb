@@ -262,19 +262,19 @@ static error_t parse_opt(int key, char* arg, struct argp_state* state)
     switch (key)
     {
         case 'w':
-            arguments->width = parse_int("width", arg, 512, INT_MAX);
+            arguments->width = (uint32_t)parse_int("width", arg, 512, UINT16_MAX);
             break;
         case 'h':
-            arguments->height = parse_int("height", arg, 512, INT_MAX);
+            arguments->height = (uint32_t)parse_int("height", arg, 512, UINT16_MAX);
             break;
         case 'x':
         {
-            arguments->width = parse_int("quad", arg, 512, INT_MAX);
+            arguments->width = (uint32_t)parse_int("quad", arg, 512, UINT16_MAX);
             arguments->height = arguments->width;
             break;
         }
         case 'i':
-            arguments->bailout = parse_int("bailout", arg, 1, INT_MAX);
+            arguments->bailout = (uint32_t)parse_int("bailout", arg, 1, UINT16_MAX);
             break;
 
         case 'b':

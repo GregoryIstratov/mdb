@@ -12,13 +12,6 @@
 #include <mdb/tools/image/image_hdr.h>
 #include <locale.h>
 
-static const char* render_control_keys =
-"Arrows  - Move Up/Down/Left/Right\n"
-"[1]/[2] - Scale up/down\n"
-"[3]/[4] - Iterations/bailout increase/decrease\n"
-"[5]/[6] - Exposure increase/decrease\n";
-
-
 inline static const char* mode_str(int mode)
 {
     switch(mode)
@@ -57,10 +50,10 @@ inline static const char* kernel_type_str(int kernel_type)
     }
 }
 
-static float* surface_create(int width, int height)
+static float* surface_create(uint32_t width, uint32_t height)
 {
     float* surface = NULL;
-    size_t size = (size_t) (width * height);
+    size_t size = width * height;
     size_t mem_size = size * sizeof(float);
     size_t align = 4096; //force to allocate it on a new page
 
@@ -88,6 +81,8 @@ static void surface_destroy(float* surface)
 
 int main(int argc, char** argv)
 {
+    bool exit_failure = false;
+
     setlocale(LC_ALL, "");
 
     struct arguments args;
@@ -168,22 +163,26 @@ int main(int argc, char** argv)
     }
     else if(args.mode == MODE_RENDER)
     {
-#if defined(OGL_RENDER_ENABLED)
-        LOG_SAY("Starting render mode...\nControl keys:\n%s\n", render_control_keys);
-        render_run(sched, kernel, &args);
-#else
-        UNUSED_PARAM(render_control_keys);
-        LOG_ERROR("OGL Render disabled at the build time.");
-#endif
+       if(!render_run(sched, kernel, args.width, args.height))
+       {
+           LOG_ERROR("Failed to run render.");
+           exit_failure = true;
+           goto shutdown;
+       }
+
     }
     else
     {
         LOG_ERROR("Unknown run mode %i", args.mode);
     }
 
+shutdown:
     rsched_shutdown(sched);
     mdb_kernel_destroy(kernel);
     log_shutdown();
+
+    if(exit_failure)
+        exit(EXIT_FAILURE);
 
     return 0;
 }
