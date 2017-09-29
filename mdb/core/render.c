@@ -155,6 +155,24 @@ static void render_key_callback(int key, void* user_ctx)
             render_update_shift(ctx);
             return;
         }
+        case GLFW_KEY_F1:
+        {
+            ctx->scale   = 2.793042f;
+            ctx->shift_x = -0.860787f;
+            ctx->shift_y = 0.0f;
+            render_update_shift(ctx);
+            render_update_scale(ctx);
+            break;
+        }
+        case GLFW_KEY_F2:
+        {
+            ctx->scale   = 0.00188964f;
+            ctx->shift_x = -1.347385054652062f;
+            ctx->shift_y = 0.063483549665202f;
+            render_update_shift(ctx);
+            render_update_scale(ctx);
+            break;
+        }
     }
 }
 
@@ -196,9 +214,9 @@ int render_run(rsched* sched, mdb_kernel* kernel, uint32_t width, uint32_t heigh
     struct render_ctx ctx;
 
     ctx.bailout = 256;
-    ctx.scale   = 2.793042f;
-    ctx.shift_x = -0.860787f;
-    ctx.shift_y = 0.0f;
+    ctx.scale   = 0.00188964f;
+    ctx.shift_x = -1.347385054652062f;
+    ctx.shift_y = 0.063483549665202f;
     ctx.width   = width;
     ctx.height  = height;
 

@@ -28,28 +28,6 @@ inline static const char* mode_str(int mode)
     }
 }
 
-inline static const char* kernel_type_str(int kernel_type)
-{
-    switch(kernel_type)
-    {
-        case MDB_KERNEL_GENERIC:
-            return "generic";
-        case MDB_KERNEL_NATIVE:
-            return "native";
-        case MDB_KERNEL_AVX2:
-            return "avx2";
-        case MDB_KERNEL_AVX2_FMA:
-            return "avx2_fma";
-        case MDB_KERNEL_AVX2_FMA_ASM:
-            return "avx2_fma_asm";
-        case MDB_KERNEL_EXTERNAL:
-            return "external";
-
-        default:
-            return "unknown";
-    }
-}
-
 static float* surface_create(uint32_t width, uint32_t height)
 {
     float* surface = NULL;
@@ -106,7 +84,7 @@ int main(int argc, char** argv)
     PARAM_INFO("Run mode", "%s", mode_str(args.mode));
     if(args.mode == MODE_BENCHMARK)
         PARAM_INFO("Benchmark runs", "%i", args.benchmark_runs);
-    PARAM_INFO("Kernel", "%s", kernel_type_str(args.kernel_type));
+    PARAM_INFO("Kernel", "%s", args.kernel_name);
     PARAM_INFO("Threads", "%i", threads);
     PARAM_INFO("Block size", "%ix%i", args.block_size.x, args.block_size.y);
     PARAM_INFO("Width", "%i", args.width);
@@ -114,7 +92,7 @@ int main(int argc, char** argv)
     PARAM_INFO("Bailout", "%i", args.bailout);
 
     mdb_kernel* kernel;
-    if(mdb_kernel_create(&kernel, args.kernel_type, args.kernel_name) != 0)
+    if(mdb_kernel_create(&kernel, args.kernel_name) != 0)
     {
         LOG_ERROR("Cannot create the kernel");
         log_shutdown();
@@ -163,7 +141,7 @@ int main(int argc, char** argv)
     }
     else if(args.mode == MODE_RENDER)
     {
-       if(!render_run(sched, kernel, args.width, args.height))
+       if(render_run(sched, kernel, args.width, args.height))
        {
            LOG_ERROR("Failed to run render.");
            exit_failure = true;

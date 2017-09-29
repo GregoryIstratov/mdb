@@ -37,23 +37,11 @@
 
 typedef struct _mdb_kernel mdb_kernel;
 
-enum
-{
-    MDB_KERNEL_AVX2_FMA,
-    MDB_KERNEL_AVX2,
-    MDB_KERNEL_GENERIC,
-    MDB_KERNEL_NATIVE,
-    MDB_KERNEL_AVX2_FMA_ASM,
-    MDB_KERNEL_EXTERNAL
-};
-
 /* Create mandelbrot kernel of given type
- * if kernel_type is MDB_KERNEL_EXTERNAL
- * then ext_kernel must point to the name of external kernel to load
- * otherwise NULL.
+ * kernel_name must point to the name of a kernel to load
  * A new kernel creates with default preset parameters.
  */
-int mdb_kernel_create(mdb_kernel** pmdb, int kernel_type, const char* ext_kernel);
+int mdb_kernel_create(mdb_kernel** pmdb, const char* kernel_name);
 
 /* Destroy kernel and release all resources */
 void mdb_kernel_destroy(mdb_kernel* mdb);

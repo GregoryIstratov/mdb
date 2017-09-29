@@ -1,30 +1,115 @@
+#include <stdlib.h>
 #include <stdint.h>
 #include <immintrin.h>
 #include <stdalign.h>
 
-#include <mdb/config/config.h>
-
-#include "mdb_kernel.h"
-#include "surface.h"
-
-#if defined(MDB_ENABLE_AVX2_KERNEL)
+#include <kernel_module.h>
 
 #if !defined(__AVX__)
 #error "AVX is not enabled. Consider set gcc flags -mavx2"
 #endif
 
-void mdb_kernel_process_block_avx2(struct _mdb_kernel* mdb, uint32_t x0, uint32_t x1, uint32_t y0, uint32_t y1)
+
+static struct
 {
-    __m256 v_scale = _mm256_set1_ps(mdb->scale);
-    __m256 v_shift_x = _mm256_set1_ps(mdb->shift_x);
-    __m256 v_shift_y = _mm256_set1_ps(mdb->shift_y);
+    uint32_t bailout;
+    uint32_t width;
+    uint32_t height;
+    float shift_x;
+    float shift_y;
+    float scale;
+    float* f32surface;
+    float width_r;
+    float height_r;
+    float aspect_ratio;
+} mdb;
+
+static const char* name = "Mandelbrot AVX2 intrinsic kernel";
+static const char* ver_maj = "1";
+static const char* ver_min = "0";
+
+
+
+int mdb_kernel_metadata_query(int query, char* buff, uint32_t buff_size)
+{
+    switch(query)
+    {
+        case MDB_KERNEL_META_NAME:
+            return metadata_copy(name, buff, buff_size);
+
+        case MDB_KERNEL_META_VER_MAJ:
+            return metadata_copy(ver_maj, buff, buff_size);
+
+        case MDB_KERNEL_META_VER_MIN:
+            return metadata_copy(ver_min, buff, buff_size);
+
+        default:
+            return MDB_QUERY_NO_PARAM;
+    }
+}
+
+int mdb_kernel_cpu_features(void)
+{
+    return CPU_FEATURE_AVX2;
+}
+
+void mdb_kernel_init(void)
+{
+
+}
+
+void mdb_kernel_shutdown(void)
+{
+
+}
+
+void mdb_kernel_set_size(uint32_t width, uint32_t height)
+{
+    mdb.width = width;
+    mdb.height = height;
+    mdb.width_r = 1.0f / width;
+    mdb.height_r = 1.0f / height;
+    mdb.aspect_ratio = (float)width / height;
+}
+
+void mdb_kernel_set_scale(float scale)
+{
+    mdb.scale = scale;
+}
+
+void mdb_kernel_set_shift(float shift_x, float shift_y)
+{
+    mdb.shift_x = shift_x;
+    mdb.shift_y = shift_y;
+}
+
+
+void mdb_kernel_set_bailout(uint32_t bailout)
+{
+    mdb.bailout = bailout;
+}
+
+void mdb_kernel_set_surface(float* buffer)
+{
+    mdb.f32surface = buffer;
+}
+
+void mdb_kernel_submit_changes(void)
+{
+}
+
+void mdb_kernel_process_block(uint32_t x0, uint32_t x1, uint32_t y0, uint32_t y1)
+{
+    __m256 v_scale = _mm256_set1_ps(mdb.scale);
+    __m256 v_shift_x = _mm256_set1_ps(mdb.shift_x);
+    __m256 v_shift_y = _mm256_set1_ps(mdb.shift_y);
     __m256 v_center = _mm256_set1_ps(-0.5f);
 
-    uint32_t bailout = (uint32_t) mdb->bailout;
+    uint32_t bailout =  mdb.bailout;
 
-    __m256 v_width_r = _mm256_set1_ps(mdb->width_r);
-    __m256 v_height_r = _mm256_set1_ps(mdb->height_r);
-    __m256 v_wxh = _mm256_set1_ps(mdb->aspect_ratio);
+    __m256 v_width_r = _mm256_set1_ps(mdb.width_r);
+    __m256 v_height_r = _mm256_set1_ps(mdb.height_r);
+    __m256 v_wxh = _mm256_set1_ps(mdb.aspect_ratio);
 
     __m256 v_bound2 = _mm256_set1_ps(4);
     __m256 v_one = _mm256_set1_ps(1);
@@ -97,10 +182,8 @@ void mdb_kernel_process_block_avx2(struct _mdb_kernel* mdb, uint32_t x0, uint32_
             alignas(32) float pixels[8];
             _mm256_store_ps(pixels, v_i);
 
-            surface_set_pixels(mdb->f32surface, mdb->width, mdb->height, pixels, 8, x, y);
+            surface_set_pixels(mdb.f32surface, mdb.width, mdb.height, pixels, 8, x, y);
 
         }
     }
 }
-
-#endif

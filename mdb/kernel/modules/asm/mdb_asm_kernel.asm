@@ -232,38 +232,42 @@ section .text
     global sample_rdtsc:function
     global sample_rdtscp:function
 
-    global mdb_asm_kernel_metadata_query:function
+    global mdb_kernel_metadata_query:function
 
-    global mdb_asm_kernel_init:function
-    global mdb_asm_kernel_shutdown:function
+    global mdb_kernel_init:function
+    global mdb_kernel_shutdown:function
 
-    global mdb_asm_kernel_process_block:function
+    global mdb_kernel_cpu_features:function
+
+    global mdb_kernel_process_block:function
 
     ; rdi = width
     ; rsi = height
-    global mdb_asm_kernel_set_size:function
+    global mdb_kernel_set_size:function
 
     ; xmm0 - scale
-    global mdb_asm_kernel_set_scale:function
+    global mdb_kernel_set_scale:function
 
     ; xmm0 - shift_x
     ; xmm1 - shift_y
-    global mdb_asm_kernel_set_shift:function
+    global mdb_kernel_set_shift:function
 
     ; edi - bailout
-    global mdb_asm_kernel_set_bailout:function
+    global mdb_kernel_set_bailout:function
 
     ; rdi - pointer to f32 buffer
-    global mdb_asm_kernel_set_surface:function
+    global mdb_kernel_set_surface:function
 
     ;void(void)
-    global mdb_asm_kernel_submit_changes:function
+    global mdb_kernel_submit_changes:function
 
+; old metadata query version
+%if 0
 ; edi = int flags
 ; rsi = char* buff
 ; edx = int buffsize
-mdb_asm_kernel_metadata_query:
-%push mdb_asm_kernel_metadata_query
+mdb_kernel_metadata_query:
+%push mdb_kernel_metadata_query
 %define FLAG_NAME    1b
 %define FLAG_VER_MAJ 10b
 %define FLAG_VER_MIN 100b
@@ -336,14 +340,96 @@ mdb_asm_kernel_metadata_query:
     mov [buff + buff_idx_q],eax
     ret
 %pop
+%endif
 
-mdb_asm_kernel_init:
+; edi = int flags
+; rsi = char* buff
+; edx = int buffsize
+mdb_kernel_metadata_query:
+%push mdb_kernel_metadata_query
+%define FLAG_NAME    1
+%define FLAG_VER_MAJ 2
+%define FLAG_VER_MIN 3
+
+%define flags        edi
+%define buff         rsi
+%define buffsize     edx
+%define idx          r10
+%define buff_idx     r9d
+%define buff_idx_q   r9
+%define cur_field    rcx
+%define cur_field_sz r11
+%define tmp0b        r8b
+
+    xor buff_idx,buff_idx
+.test_query_flags:
+    mov eax,flags
+
+    cmp eax,FLAG_NAME
+    je .query_name
+
+    cmp  eax,FLAG_VER_MAJ
+    je .query_ver_maj
+
+    cmp  eax,FLAG_VER_MIN
+    je .query_ver_min
+
+
+    jmp .exit
+
+.query_name:
+    mov cur_field,meta_name
+    mov cur_field_sz,meta_name_size
+    xor flags,FLAG_NAME
+    jmp .copy_to_buff
+
+.query_ver_maj:
+    mov cur_field,meta_ver_maj
+    mov cur_field_sz,meta_ver_maj_size
+    xor flags,FLAG_VER_MAJ
+    jmp .copy_to_buff
+
+.query_ver_min:
+    mov cur_field,meta_ver_min
+    mov cur_field_sz,meta_ver_min_size
+    xor flags,FLAG_VER_MIN
+    jmp .copy_to_buff
+
+.copy_to_buff:
+    xor idx,idx
+.copy_loop:
+    cmp buff_idx,buffsize
+    jge .exit
+
+    cmp idx,cur_field_sz
+    jge .exit
+
+    mov tmp0b,[cur_field + idx]
+    mov [buff + buff_idx_q],tmp0b
+    inc idx
+    inc buff_idx
+    jmp .copy_loop
+
+.exit:
+    xor eax,eax
+    mov [buff + buff_idx_q],eax
+    ret
+%pop
+
+mdb_kernel_cpu_features:
+; mdb/tools/bits/cpu_features.h
+; CPU_FEATURE_AVX2    = 1<<8,
+; CPU_FEATURE_FMA     = 1<<9
+    mov eax,1<<8 | 1<<9
     ret
 
-mdb_asm_kernel_shutdown:
+mdb_kernel_init:
     ret
 
-mdb_asm_kernel_submit_changes:
+mdb_kernel_shutdown:
+    ret
+
+mdb_kernel_submit_changes:
     ;(height_r * cy + center) * scale + shift_y
     ;cy * height_r * scale + center * scale + shift_y
     ;a = height_r * scale
@@ -417,7 +503,7 @@ mdb_asm_kernel_submit_changes:
 
 ; edi = width
 ; esi = height
-mdb_asm_kernel_set_size:
+mdb_kernel_set_size:
     mov [width], edi
     mov [height],esi
 
@@ -445,24 +531,24 @@ mdb_asm_kernel_set_size:
     ret
 
 ; xmm0 - scale
-mdb_asm_kernel_set_scale:
+mdb_kernel_set_scale:
     vmovss [scale_ss],xmm0
     ret
 
 ; xmm0 - shift_x
 ; xmm1 - shift_y
-mdb_asm_kernel_set_shift:
+mdb_kernel_set_shift:
     vmovss [shift_x_ss],xmm0
     vmovss [shift_y_ss],xmm1
     ret
 
 ; edi - bailout
-mdb_asm_kernel_set_bailout:
+mdb_kernel_set_bailout:
     mov [bailout_si],edi
     ret
 
 ; rdi - pointer to f32 buffer
-mdb_asm_kernel_set_surface:
+mdb_kernel_set_surface:
     mov [output_ptr],rdi
     ret
 
@@ -503,8 +589,8 @@ sample_rdtscp:
 ; esi x1
 ; edx y0
 ; ecx y1
-mdb_asm_kernel_process_block:
-%push mdb_asm_kernel_process_block
+mdb_kernel_process_block:
+%push mdb_kernel_process_block
 
 %define _CMP_LT_OQ  0x11
 %define _CMP_NEQ_OQ 0x0c

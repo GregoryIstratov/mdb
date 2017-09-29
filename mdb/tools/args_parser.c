@@ -53,7 +53,6 @@
 #include <stdlib.h>
 #include <argp.h>
 #include <string.h>
-#include <mdb/kernel/mdb_kernel.h>
 
 const char* argp_program_version =
         "mandelbrot 1.0";
@@ -188,36 +187,6 @@ static void parse_block_size(const char* val, struct block_size* bs)
     }
 }
 
-
-static int parse_kernel_type(char* arg)
-{
-    if(strcmp(arg, "generic") == 0)
-    {
-        return MDB_KERNEL_GENERIC;
-    }
-    else if(strcmp(arg, "native") == 0)
-    {
-        return MDB_KERNEL_NATIVE;
-    }
-    else if(strcmp(arg, "avx2") == 0)
-    {
-        return MDB_KERNEL_AVX2;
-    }
-    else if(strcmp(arg, "avx2_fma") == 0)
-    {
-        return MDB_KERNEL_AVX2_FMA;
-    }
-    else if(strcmp(arg, "avx2_fma_asm") == 0)
-    {
-        return MDB_KERNEL_AVX2_FMA_ASM;
-    }
-    else
-    {
-        return MDB_KERNEL_EXTERNAL;
-    }
-
-}
-
 static int parse_threads(char* arg)
 {
     if(strcmp(arg, "auto") == 0)
@@ -282,14 +251,8 @@ static error_t parse_opt(int key, char* arg, struct argp_state* state)
             break;
 
         case 'k':
-        {
-            arguments->kernel_type = parse_kernel_type(arg);
-            if(arguments->kernel_type == MDB_KERNEL_EXTERNAL)
-            {
-                arguments->kernel_name = arg;
-            }
+            arguments->kernel_name = arg;
             break;
-        }
 
         case 't':
             arguments->threads = parse_threads(arg);
@@ -351,7 +314,7 @@ void args_parse(int argc, char** argv, struct arguments* arguments)
     arguments->bailout       = 256;
     arguments->block_size.x  = 64;
     arguments->block_size.y  = 64;
-    arguments->kernel_type   = MDB_KERNEL_GENERIC;
+    arguments->kernel_name   = "generic";
     arguments->threads       = -1;
     arguments->mode          = MODE_ONESHOT;
     arguments->output_file   = "mandelbrot.hdr";

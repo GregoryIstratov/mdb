@@ -8,4 +8,4 @@
 #define __cold	__attribute__((__cold__))
 #define __hot	__attribute__((__hot__))
 
-#define CPU_CHECK_FEATURE(feature) __builtin_cpu_supports(feature)
+#define return_if(cond, val) if(cond) return (val);

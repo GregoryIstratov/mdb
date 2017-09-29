@@ -17,7 +17,6 @@ struct arguments
     uint32_t width, height;
     uint32_t bailout;
     struct block_size block_size;
-    int kernel_type;
     char* kernel_name;
     int threads;
     int mode;

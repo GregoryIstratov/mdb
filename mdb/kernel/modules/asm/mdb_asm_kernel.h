@@ -1,5 +1,6 @@
 #pragma once
 
+#if 0
 #include <stdint.h>
 
 void mdb_asm_kernel_metadata_query(int flags, char* buff, uint32_t buff_size);
@@ -25,3 +26,4 @@ void mdb_asm_kernel_submit_changes(void);
 unsigned long sample_rdtsc(void);
 
 unsigned long sample_rdtscp(void);
+#endif

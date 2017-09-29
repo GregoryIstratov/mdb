@@ -72,24 +72,6 @@
  */
 #cmakedefine MDB_ENABLE_AVX_FMA_ASM_KERNEL
 
-/* Enable external kernel support.
- * This means program can load dynamically kernel in runtime
- * using specified API described in mdb/kernel/external/mdb_kernel_ext.h
- * It allows using third-party kernels with the programm without a need for
- * recompiling and change sources.
- * External kernel sources located in mdb/kernel/external/kernels/
- * and should be one C source file in this folder per kernel with unique name
- * which later will be used to load these kernel with --kernel option.
- * Build system scans mdb/kernel/external/kernels/ for all *.c files
- * and makes a module ( shared object ) per one file it finds.
- * External kernel process function must be thread-safe because usually
- * program runs using maximum available hardware threads ( if user not specified it by himself )
- * and scheduler devides work to small pieces of work and invokes process-functions simultaneously
- * on all available worker threads.
- * Example of external kernel available in mdb/kernel/external/kernels/ext_avx2_fma.c
- * and can be used as reference to make other kernels.
- */
-#cmakedefine MDB_ENABLE_EXTERNAL_KERNEL_SUPPORT
 
 /* ---------------------------------------------------
  * Render parameters
