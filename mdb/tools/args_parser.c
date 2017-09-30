@@ -77,7 +77,8 @@ enum
 enum
 {
     ARG_KEY_MODE = 0xFF00,
-    ARG_KEY_BENCH_RUNS
+    ARG_KEY_BENCH_RUNS,
+    ARG_KEY_COLORS
 };
 
 /* The options we understand. */
@@ -88,13 +89,14 @@ static struct argp_option options[] = {
         {"quad",        'x', "SIZE", 0, "Surface NxN in pixels | default: 1024 ", ARG_GROUP_INHERIT},
         {"bailout",     'i', "N"   , 0, "Bailout / Max iteration depth | default: 256 ", ARG_GROUP_INHERIT},
         {"block-size",  'b', "NxM" , 0, "Computation block size | default: 64x64", ARG_GROUP_INHERIT},
-        {"kernel",      'k', "generic|native|avx2|avx2_fma|<name>" , 0, "\nThis is the most important option determines which kernel should be used for computation which can significantly increase performance, but your CPU should support those features that you want use:\n"
+        {"kernel",      'k', "generic|native|avx2|avx2_fma|avx2_fma_asm|<name>" , 0, "\nThis option determines which kernel should be used for computation that can significantly increase performance, but your CPU should support those features that you want use:\n"
                                "generic - This Kernel is written in C and compiled to use generic cpu instruction set of your cpu architecture for processing.\n"
                                "native  - This kernel is written in C and only available if you compile this program from the sources with specifying MDB_ENABLE_NATIVE_KERNEL flag "
                                "this allows compiler to determine your cpu and use suitable instruction set like SSE,AVX,FMA, but performance of this kernel depends only on how smart is your compiler and this may benefit not significantly compared to the generic kernel.\n"
                                "avx2 - This Kernel is written in assembler intrinsics using AVX2 instruction set to vectorize computation.\n"
                                "avx2_fma - This Kernel is written in assembler intrinsics using AVX2 and FMA3 instruction set to vectorize computation.\n"
-                               "<name> - You can dynamically load custom kernels, specify name ( w/o extension) of a kernel in 'kernels' directory. Example: './mandelbrot -k kernel_avx_fma' which included as an example into the project\n"
+                               "avx2_fma_asm - This Kernel is written in pure assembler with NASM using AVX2 and FMA3 instructions to vectorize computation.\n"
+                               "<name> - You can dynamically load custom kernels, specify name ( w/o extension) of a kernel in 'kernels' directory. Example: './mandelbrot -k avx2_fma' which included as an example into the project\n"
                                "default: generic",
                 ARG_GROUP_INHERIT},
         {"threads",     't', "n|auto"   , 0, "Processing threads number, auto - determines count of hardware threads | default: auto", ARG_GROUP_INHERIT},
@@ -104,6 +106,7 @@ static struct argp_option options[] = {
                                "render - Real-time render to screen, requires opengl for output\n"
                                "default: oneshot",
                 ARG_GROUP_INHERIT},
+        {"colors", ARG_KEY_COLORS, "on|off"   , 0, "Enable coloring by OpenGL shader | default: on", ARG_GROUP_INHERIT},
 
         {0,   0, 0, 0, "Mode oneshot params:", ARG_GROUP_MODE_ONESHOT},
         {"output",  'o', "FILE", 0, "Output to FILE with HDR format | default: mandelbrot.hdr", ARG_GROUP_INHERIT},
@@ -220,6 +223,23 @@ static int parse_mode(char* arg)
     }
 }
 
+static int parse_on_off(char* key, char* arg)
+{
+    if(strcmp(arg, "on") == 0)
+    {
+        return 1;
+    }
+    else if(strcmp(arg, "off") == 0)
+    {
+        return 0;
+    }
+    else
+    {
+        fprintf(stderr, "Unknown value for --'%s'=%s allowed on|off\n", key, arg);
+        exit(EXIT_FAILURE);
+    }
+}
+
 
 /* Parse a single option. */
 static error_t parse_opt(int key, char* arg, struct argp_state* state)
@@ -264,6 +284,10 @@ static error_t parse_opt(int key, char* arg, struct argp_state* state)
 
         case ARG_KEY_BENCH_RUNS:
             arguments->benchmark_runs = parse_int("benchmark-runs", arg, 1, INT_MAX);
+            break;
+
+        case ARG_KEY_COLORS:
+            arguments->shader_colors = parse_on_off("colors", arg);
             break;
 
         case 'q':
@@ -319,6 +343,7 @@ void args_parse(int argc, char** argv, struct arguments* arguments)
     arguments->mode          = MODE_ONESHOT;
     arguments->output_file   = "mandelbrot.hdr";
     arguments->benchmark_runs= 100;
+    arguments->shader_colors = 1;
 
     /* Parse our arguments; every option seen by parse_opt will
        be reflected in arguments. */

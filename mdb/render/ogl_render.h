@@ -17,3 +17,5 @@ void ogl_render_set_resize_callback(ogl_render* rend, ogl_render_resize_callback
 void ogl_render_render_loop(ogl_render* rend);
 
 void ogl_render_destroy(ogl_render* rend);
+
+void ogl_render_colors_enabled(int status);

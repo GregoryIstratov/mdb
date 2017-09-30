@@ -16,6 +16,45 @@
 
 #define PBO_SIZE_MULTIPLIER 8
 
+struct pbo_t
+{
+    GLuint texture_id;
+    GLuint buffer_id;
+    uint32_t buff_size;
+    uint32_t width;
+    uint32_t height;
+    data_update_callback data_update;
+    void* update_context;
+    void* data;
+};
+
+struct _ogl_render
+{
+    uint32_t window_width;
+    uint32_t window_height;
+    GLuint vao;
+    GLFWwindow* window;
+    GLuint program;
+    struct pbo_t pbo;
+};
+
+static float g_exposure = 1.0;
+static void* g_user_ctx;
+static ogl_render_key_callback g_user_key_callback;
+static ogl_render_resize_callback g_resize_cb;
+
+static ogl_render* g_rend;
+static GLsync gSyncObject;
+
+static size_t gWaitCount = 0;
+
+static int colors_enabled = 1;
+
+void ogl_render_colors_enabled(int status)
+{
+    colors_enabled = status;
+}
+
 static char* file_read_shader_source(const char* filename)
 {
     FILE* in = fopen(filename, "rb");
@@ -80,20 +119,29 @@ static void print_shader_log(const char* text, GLuint object)
     free(log);
 }
 
-static GLuint create_shader(const char* filename, GLenum type)
+static GLuint create_shader(const char* filename, const char* defines, GLenum type)
 {
+    static const char* version_define = "#version 440 \n";
 
     char *source = file_read_shader_source(filename);
 
     if (source == NULL)
         return 0;
 
-    const char* sources[] = {source };
-
-
     GLuint res = glCreateShader(type);
 
-    glShaderSource(res, 1, sources, NULL);
+    if(defines)
+    {
+        const char* sources[] = { version_define, defines, source};
+
+        glShaderSource(res, 3, sources, NULL);
+    }
+    else
+    {
+        const char* sources[] = {version_define, source};
+
+        glShaderSource(res, 2, sources, NULL);
+    }
 
     glCompileShader(res);
     GLint compile_ok = GL_FALSE;
@@ -113,15 +161,17 @@ static GLuint create_shader(const char* filename, GLenum type)
 
 static GLuint create_screen_quad_program()
 {
+    const char* color_define = "#define ENABLE_COLORS \n";
+
     GLint link_ok = GL_FALSE;
     GLuint gs, vs, fs;
     GLuint program;
 
-    if ((gs = create_shader("shaders/screen_quad_gs.glsl", GL_GEOMETRY_SHADER)) == 0)
+    if ((gs = create_shader("shaders/screen_quad_gs.glsl", NULL, GL_GEOMETRY_SHADER)) == 0)
         exit(EXIT_FAILURE);
-    if ((vs = create_shader("shaders/screen_quad_gs_vs.glsl", GL_VERTEX_SHADER)) == 0)
+    if ((vs = create_shader("shaders/screen_quad_gs_vs.glsl", NULL, GL_VERTEX_SHADER)) == 0)
         exit(EXIT_FAILURE);
-    if ((fs = create_shader("shaders/screen_quad_fs.glsl", GL_FRAGMENT_SHADER)) == 0)
+    if ((fs = create_shader("shaders/screen_quad_fs.glsl",colors_enabled? color_define : NULL, GL_FRAGMENT_SHADER)) == 0)
         exit(EXIT_FAILURE);
 
 
@@ -149,39 +199,8 @@ static void error_callback(int error, const char* description)
 }
 
 
-struct pbo_t
-{
-    GLuint texture_id;
-    GLuint buffer_id;
-    uint32_t buff_size;
-    uint32_t width;
-    uint32_t height;
-    data_update_callback data_update;
-    void* update_context;
-    void* data;
-};
 
-struct _ogl_render
-{
-    uint32_t window_width;
-    uint32_t window_height;
-    GLuint vao;
-    GLFWwindow* window;
-    GLuint program;
-    struct pbo_t pbo;
-};
-
-static float g_exposure = 1.0;
-static void* g_user_ctx;
-static ogl_render_key_callback g_user_key_callback;
-static ogl_render_resize_callback g_resize_cb;
-
-static ogl_render* g_rend;
-static GLsync gSyncObject;
-
-static size_t gWaitCount = 0;
-
-void LockBuffer(GLsync* syncObj)
+static void lock_buffer(GLsync* syncObj)
 {
     if (*syncObj)
         glDeleteSync(*syncObj);
@@ -189,7 +208,7 @@ void LockBuffer(GLsync* syncObj)
     *syncObj = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
 }
 
-void WaitBuffer(GLsync* syncObj)
+static void wait_buffer(GLsync* syncObj)
 {
     if (*syncObj)
     {
@@ -231,12 +250,12 @@ static void create_pbo(struct pbo_t* pbo, uint32_t width, uint32_t height, data_
 
 static void update_pbo(struct pbo_t* pbo)
 {
-    WaitBuffer(&gSyncObject);
+    wait_buffer(&gSyncObject);
 
     pbo->data_update(pbo->data, pbo->update_context);
 
 
-    LockBuffer(&gSyncObject);
+    lock_buffer(&gSyncObject);
 
 }
 
@@ -266,7 +285,7 @@ static void resize_pbo(struct pbo_t* pbo, uint32_t width, uint32_t height)
     glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
     glBindTexture(GL_TEXTURE_2D, 0);
 
-    WaitBuffer(&gSyncObject);
+    wait_buffer(&gSyncObject);
 
     glDeleteBuffers(1, &pbo->buffer_id);
     glDeleteTextures(1, &pbo->texture_id);
@@ -291,7 +310,7 @@ static void resize_pbo(struct pbo_t* pbo, uint32_t width, uint32_t height)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 
 
-    LockBuffer(&gSyncObject);
+    lock_buffer(&gSyncObject);
 
     LOG_DEBUG("leave");
 }
@@ -458,7 +477,7 @@ void ogl_render_render_loop(ogl_render* rend)
     {
         double start = sample_timer();
 
-        WaitBuffer(&gSyncObject);
+        wait_buffer(&gSyncObject);
 
         int vp_bot = 0;
         int vp_left = rend->window_width - rend->pbo.width;
@@ -486,7 +505,7 @@ void ogl_render_render_loop(ogl_render* rend)
 
         glDrawArrays(GL_POINTS, 0, 1);
 
-        LockBuffer(&gSyncObject);
+        lock_buffer(&gSyncObject);
 
         glfwSwapBuffers(rend->window);
 

@@ -126,7 +126,7 @@ int main(int argc, char** argv)
 
         mdb_kernel_set_surface(kernel, surf);
 
-       if(render_run(sched, kernel, surf, args.width, args.height))
+       if(render_run(sched, kernel, surf, args.width, args.height, args.shader_colors))
        {
            LOG_ERROR("Failed to run render.");
            exit_failure = true;

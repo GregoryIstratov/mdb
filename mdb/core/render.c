@@ -15,7 +15,9 @@ static const char* render_control_keys =
         "Arrows  - Move Up/Down/Left/Right\n"
                 "[1]/[2] - Scale up/down\n"
                 "[3]/[4] - Iterations/bailout increase/decrease\n"
-                "[5]/[6] - Exposure increase/decrease\n";
+                "[5]/[6] - Exposure increase/decrease\n"
+                "[F1-F4] - Change position\n"
+;
 
 
 struct render_ctx
@@ -174,6 +176,24 @@ static void render_key_callback(int key, void* user_ctx)
             render_update_scale(ctx);
             break;
         }
+        case GLFW_KEY_F3:
+        {
+            ctx->shift_x = -0.715882f;
+            ctx->shift_y = 0.287651f;
+            ctx->scale   = 0.057683f;
+            render_update_shift(ctx);
+            render_update_scale(ctx);
+            break;
+        }
+        case GLFW_KEY_F4:
+        {
+            ctx->shift_x = 0.356868f;
+            ctx->shift_y = 0.348140f;
+            ctx->scale   = 0.003869f;
+            render_update_shift(ctx);
+            render_update_scale(ctx);
+            break;
+        }
     }
 }
 
@@ -210,7 +230,7 @@ static void render_kernel_proc_fun(uint32_t x0, uint32_t x1, uint32_t y0, uint32
     mdb_kernel_process_block(rend_ctx->kernel, x0, x1, y0, y1);
 }
 
-int render_run(rsched* sched, mdb_kernel* kernel, surface* surf, uint32_t width, uint32_t height)
+int render_run(rsched* sched, mdb_kernel* kernel, surface* surf, uint32_t width, uint32_t height, int enable_colors)
 {
     struct render_ctx ctx;
 
@@ -231,8 +251,12 @@ int render_run(rsched* sched, mdb_kernel* kernel, surface* surf, uint32_t width,
 
 #if defined(OGL_RENDER_ENABLED)
     ogl_render* rend;
+
+    ogl_render_colors_enabled(enable_colors);
+
     ogl_render_create(&rend, ctx.width, ctx.height, &render_update, &ctx, &render_key_callback);
     ogl_render_set_resize_callback(rend, &render_resize);
+
 
 
     ogl_render_render_loop(rend);

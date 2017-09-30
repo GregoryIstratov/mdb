@@ -23,6 +23,7 @@ struct arguments
     int benchmark_runs;
     int silent, verbose;
     char* output_file;
+    int shader_colors;
 };
 
 void args_parse(int argc, char** argv, struct arguments* arguments);
