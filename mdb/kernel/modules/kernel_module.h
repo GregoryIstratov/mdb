@@ -4,7 +4,7 @@
 #include <string.h>
 
 #include <mdb/kernel/bits/mdb_kernel_meta.h>
-#include <mdb/tools/bits/cpu_features.h>
+#include <mdb/tools/cpu_features.h>
 #include <mdb/tools/compiler.h>
 #include <mdb/surface/surface.h>
 

@@ -19,7 +19,7 @@ enum
     RSCHED_WORKER = 1
 };
 
-/* Create scheduler with n workers
+/* Create a scheduler with n workers
  * This scheduler uses static length common between workers queue for tasks
  * that is created and fills at preparation stage and left immutable
  * during processing.

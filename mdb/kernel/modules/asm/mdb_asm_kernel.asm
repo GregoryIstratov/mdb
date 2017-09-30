@@ -420,7 +420,7 @@ mdb_kernel_metadata_query:
 %pop
 
 mdb_kernel_cpu_features:
-; mdb/tools/bits/cpu_features.h
+; mdb/tools/cpu_features.h
 ; CPU_FEATURE_AVX2    = 1<<8,
 ; CPU_FEATURE_FMA     = 1<<9
     mov eax,1<<8 | 1<<9
