@@ -6,6 +6,8 @@
 
 #include <mdb/kernel/bits/mdb_kernel_meta.h>
 
+#include <mdb/surface/surface.h>
+
 #define MDB_FLOAT_C(x) ((float)(x))
 
 struct _mdb_kernel;
@@ -31,7 +33,7 @@ typedef void (*mdb_kernel_set_shift_t)(float shift_x, float shift_y);
 
 typedef void (*mdb_kernel_set_bailout_t)(uint32_t bailout);
 
-typedef void (*mdb_kernel_set_surface_t)(float* buffer);
+typedef void (*mdb_kernel_set_surface_t)(surface* surf);
 
 typedef void (*mdb_kernel_submit_changes_t)(void);
 

@@ -8,7 +8,7 @@
 #include <errno.h>
 
 #include "log.h"
-#include "utils.h"
+#include "compiler.h"
 
 #define LOG_RED   "\x1B[31m"
 #define LOG_GRN   "\x1B[32m"

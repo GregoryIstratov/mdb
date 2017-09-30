@@ -1,7 +1,7 @@
 #include "benchmark.h"
 
 #include <malloc.h>
-#include <mdb/tools/utils.h>
+#include <mdb/tools/compiler.h>
 #include <mdb/tools/timer.h>
 #include <mdb/kernel/mdb_kernel.h>
 #include <mdb/sched/rsched.h>

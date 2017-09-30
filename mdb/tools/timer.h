@@ -2,7 +2,7 @@
 
 #include <string.h>
 #include <stdint.h>
-#include <mdb/tools/utils.h>
+#include <mdb/tools/compiler.h>
 #include <mdb/tools/log.h>
 
 #define NANOSECONDS_IN_SECOND 1000000000

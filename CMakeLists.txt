@@ -11,7 +11,7 @@ configure_file(mdb/config/config.h.in ${CMAKE_CURRENT_SOURCE_DIR}/mdb/config/con
 
 set(CMAKE_VERBOSE_MAKEFILE off)
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu11 -D_GNU_SOURCE -fPIC -march=native -Wall -Wextra -Wno-unused-function")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu11 -D_GNU_SOURCE -fPIC -rdynamic -fvisibility=hidden -march=native -Wall -Wextra -Wno-unused-function")
 set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DDEBUG -ggdb3 -O0")
 #set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -fsanitize=leak")
 #set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -fsanitize=undefined")
@@ -28,8 +28,7 @@ set(SOURCE_FILES
         mdb/sched/rsched.h
         mdb/tools/args_parser.c
         mdb/tools/args_parser.h
-        mdb/tools/utils.c
-        mdb/tools/utils.h
+        mdb/tools/compiler.h
         mdb/tools/log.c
         mdb/tools/log.h
         mdb/tools/atomic_x86.h
@@ -43,27 +42,31 @@ set(SOURCE_FILES
         mdb/kernel/mdb_kernel.c
         mdb/kernel/mdb_kernel.h
         mdb/kernel/bits/mdb_kernel.h
-
+        mdb/kernel/bits/mdb_kernel_meta.h
         mdb/tools/cpu_features.c
-        mdb/tools/cpu_features.h mdb/kernel/bits/mdb_kernel_meta.h)
+        mdb/tools/cpu_features.h
+        mdb/surface/surface.c
+        mdb/surface/surface.h)
 
 
+if(OGL_RENDER_ENABLED)
+    list(APPEND SOURCE_FILES
+            mdb/render/glad/src/glad.c
+            mdb/render/ogl_render.c)
+endif()
 
 add_executable(mandelbrot ${SOURCE_FILES})
 target_link_libraries(mandelbrot pthread dl)
 
 if(OGL_RENDER_ENABLED)
-    add_library(ogl_render SHARED mdb/render/glad/src/glad.c mdb/render/ogl_render.c)
-    target_link_libraries(ogl_render dl glfw)
+    target_link_libraries(mandelbrot glfw)
 
     file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/shaders)
     add_custom_command(
-            TARGET ogl_render POST_BUILD
+            TARGET mandelbrot POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E copy
             ${CMAKE_SOURCE_DIR}/mdb/render/shaders/*
             ${CMAKE_CURRENT_BINARY_DIR}/shaders/)
-
-    target_link_libraries(mandelbrot ogl_render)
 endif()
 
 

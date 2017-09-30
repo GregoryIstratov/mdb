@@ -3,7 +3,7 @@
 #include <dlfcn.h>
 #include <string.h>
 
-#include <mdb/tools/utils.h>
+#include <mdb/tools/compiler.h>
 #include <mdb/tools/log.h>
 
 #include <mdb/kernel/bits/mdb_kernel.h>
@@ -42,7 +42,7 @@ static int mdb_kernel_load(mdb_kernel* mdb, const char* kernel_name)
     void* handle;
     char* error;
 
-    handle = dlopen(filename, RTLD_LAZY);
+    handle = dlopen(filename, RTLD_NOW);
     if(!handle)
     {
         LOG_ERROR("Failed to load kernel '%s': %s", kernel_name, dlerror());
@@ -205,9 +205,9 @@ void mdb_kernel_destroy(mdb_kernel* mdb)
 }
 
 
-void mdb_kernel_set_surface(mdb_kernel* mdb, float* f32surface)
+void mdb_kernel_set_surface(mdb_kernel* mdb, surface* surf)
 {
-    mdb->set_surface_fun(f32surface);
+    mdb->set_surface_fun(surf);
 }
 
 void mdb_kernel_set_size(mdb_kernel* mdb, uint32_t width, uint32_t height)

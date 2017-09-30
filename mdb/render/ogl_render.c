@@ -10,7 +10,7 @@
 #include <errno.h>
 #include <time.h>
 #include <stdbool.h>
-#include <mdb/tools/utils.h>
+#include <mdb/tools/compiler.h>
 #include <mdb/tools/timer.h>
 #include <mdb/tools/log.h>
 

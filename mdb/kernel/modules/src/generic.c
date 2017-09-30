@@ -9,7 +9,7 @@ static struct
     float shift_x;
     float shift_y;
     float scale;
-    float* f32surface;
+    surface* surf;
     float width_r;
     float height_r;
     float aspect_ratio;
@@ -19,6 +19,7 @@ static const char* name = "Mandelbrot generic kernel";
 static const char* ver_maj = "1";
 static const char* ver_min = "0";
 
+__export_sym
 int mdb_kernel_metadata_query(int query, char* buff, uint32_t buff_size)
 {
     switch(query)
@@ -37,21 +38,25 @@ int mdb_kernel_metadata_query(int query, char* buff, uint32_t buff_size)
     }
 }
 
+__export_sym
 int mdb_kernel_cpu_features(void)
 {
     return 0;
 }
 
+__export_sym
 void mdb_kernel_init(void)
 {
 
 }
 
+__export_sym
 void mdb_kernel_shutdown(void)
 {
 
 }
 
+__export_sym
 void mdb_kernel_set_size(uint32_t width, uint32_t height)
 {
     mdb.width = width;
@@ -61,28 +66,32 @@ void mdb_kernel_set_size(uint32_t width, uint32_t height)
     mdb.aspect_ratio = (float)width / height;
 }
 
+__export_sym
 void mdb_kernel_set_scale(float scale)
 {
     mdb.scale = scale;
 }
 
+__export_sym
 void mdb_kernel_set_shift(float shift_x, float shift_y)
 {
     mdb.shift_x = shift_x;
     mdb.shift_y = shift_y;
 }
 
-
+__export_sym
 void mdb_kernel_set_bailout(uint32_t bailout)
 {
     mdb.bailout = bailout;
 }
 
-void mdb_kernel_set_surface(float* buffer)
+__export_sym
+void mdb_kernel_set_surface(surface* surf)
 {
-    mdb.f32surface = buffer;
+    mdb.surf = surf;
 }
 
+__export_sym
 void mdb_kernel_submit_changes(void)
 {
 }
@@ -90,5 +99,6 @@ void mdb_kernel_submit_changes(void)
 /* Override default compiler options for generating common generic code
  * without any vector extension like sse,avx,fma, etc. and force it to use x87 math coprocessor instead of default sse
  */
+__export_sym
 __attribute__((target("arch=x86-64,tune=generic,no-mmx,no-sse,no-sse2,no-sse3,no-sse4,no-avx,no-avx2,no-fma,fpmath=387")))
 MDB_KERNEL_DEFINE_PROCESS_BLOCK_FUN(mdb_kernel_process_block)

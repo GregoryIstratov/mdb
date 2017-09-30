@@ -59,7 +59,7 @@
 \
             float norm_col = (float)(i * di);\
 \
-            mdb.f32surface[y * mdb.width + x] = norm_col;\
+            surface_set_pixels(mdb.surf, x, y, 1, &norm_col); \
         }\
     }\
 }

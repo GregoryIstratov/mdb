@@ -4,7 +4,7 @@
 #include <malloc.h>
 #include <string.h>
 #include <pthread.h>
-#include <mdb/tools/utils.h>
+#include <mdb/tools/compiler.h>
 #include <mdb/tools/atomic_x86.h>
 #include <mdb/tools/log.h>
 

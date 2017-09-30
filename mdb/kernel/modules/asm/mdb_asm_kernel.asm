@@ -176,6 +176,9 @@
 ; Enable relative RIP adressing for being able to make shared object on x86-64 Linux
 DEFAULT REL
 
+;void surface_set_pixels(surface* surf, uint32_t x, uint32_t y, uint32_t n, void* pix_data);
+extern surface_set_pixels
+
 section .rodata
     const_one_ss:       dd 1.0
     center_ss:          dd -0.5
@@ -194,7 +197,7 @@ section .data
     width:              dd 0 ;1024
     height:             dd 0 ;1024
     ;wxh:                dq 1024*1024
-    output_ptr:         dq 0
+    surface_ptr:        dq 0
     output_sz:          dd 0 ;1024*1024*4
     output_stride:      dd 0 ;1024*4
 
@@ -547,9 +550,9 @@ mdb_kernel_set_bailout:
     mov [bailout_si],edi
     ret
 
-; rdi - pointer to f32 buffer
+; rdi - pointer to surface structure
 mdb_kernel_set_surface:
-    mov [output_ptr],rdi
+    mov [surface_ptr],rdi
     ret
 
 
@@ -603,15 +606,14 @@ mdb_kernel_process_block:
 %define tmp1_d      r10d
 %define tmp2        r11
 %define tmp2_d      r11d
-%define bailout     r13d
-%define i           r14d
-%define x_init      r15d
-%define output      r8
+%define bailout     r12d
+%define i           r13d
+%define x_init      r14d
 %define x           edi
-;%define x_q         rdi
+%define x_q         rdi
 %define x1          esi
 %define y           edx
-;%define y_q         rdx
+%define y_q         rdx
 %define y1          ecx
 %define v_cy_l      xmm0
 %define v_cy        ymm0
@@ -633,10 +635,12 @@ mdb_kernel_process_block:
 %define v_tmp0      ymm15
 %define v_tmp0_l    xmm15
 
+
     ; setup stack frame
     push rbp
     mov rbp,rsp
 
+    ; save calle-save registers
     push rbx
     push r15
     push r14
@@ -644,10 +648,7 @@ mdb_kernel_process_block:
     push r12
     push r11
 
-    ;sub rsp,256
-
     ; Initialize data
-    mov output,[output_ptr]
     mov bailout,[bailout_si]
 
     vmovaps v_bound2,[v_bound2_ps]
@@ -669,18 +670,6 @@ mdb_kernel_process_block:
     vfmadd213ps v_cy,v_tmp0,[v_offset_y_ps]
 
 .loop_x:
-    ; check for x out of bound
-    ; this can happen when block size
-    ; is not perfectly fit to the width
-    ; if x is out of bound then discard this iteration
-    ; to avoid memory corruption
-
-    mov eax,x
-    add eax,8
-
-    cmp eax,[width]
-    jge .discard_pixels
-
     vcvtsi2ss v_cx_l,x
     vbroadcastss v_cx,v_cx_l
     vaddps v_cx,v_cx,v_iter
@@ -792,30 +781,106 @@ mdb_kernel_process_block:
     ; normalize values
     vdivps v_i,v_i,v_tmp0
 
-    mov tmp0_d,y           ; y
-    mov tmp1_d,x           ; x
-    mov eax,[output_stride]
+    ;---------------------------------------
+    ; Begin function call block
+    ;---------------------------------------
 
-    imul eax,tmp0_d        ; stride*y
+    ; save general purpose register before call
+    push rdi
+    push rsi
+    push rdx
+    push rcx
 
-    imul tmp1_d,4          ; x * sizeof(float)
-    add eax,tmp1_d         ; rax = y*stride + x*sizeof(float)
+    ; set up new stack frame
+    ; to change stack align to 32
+    push rbp
+    mov rbp,rsp
 
-    ; write to buffer
-    lea tmp0,[output + rax] ; tmp0 = output[y*4*stride+x*4]
-    vmovups [tmp0],v_i
+    ; set stack alignment 32
+    and rsp,-32
+
+    ; allocate space on stack for vector register
+    sub rsp,256*8
+
+    ; save vector registers
+    vmovaps [rsp], v_bound2
+    vmovaps [rsp+256*1], v_one
+    vmovaps [rsp+256*2], v_transpose_x
+    vmovaps [rsp+256*3], v_offset_x
+    vmovaps [rsp+256*4], v_iter
+    vmovaps [rsp+256*5], v_cy
+    vmovaps [rsp+256*6], v_cx
+    vmovaps [rsp+256*7],v_i
+
+    ; calling function signature
+    ;void surface_set_pixels(surface* surf, uint32_t x, uint32_t y, uint32_t n, void* pix_data);
+
+    ; set up input arguments
+
+    ; set up 2nd arg first to not overwrite x in rdi
+    mov rsi,x_q
+
+    ; y - rdx so rdx=rdx pointless
+    ;mov rdx,y_q
+
+    mov rdi,[surface_ptr]
+    mov rcx,8
+    lea r8,[rsp+256*7]
+
+    ; set up new stack frame to restore alignment before call
+    ; allocate 32 bytes to save rbp without breaking alignment
+    sub rsp,32
+    mov [rsp],rbp
+    mov rbp,rsp
+
+    ; restore stack aligment to 16
+    and rsp,-16
+
+    ; call the function to set pixels
+    call surface_set_pixels wrt ..plt
+
+    ; restore stack with 32 aligment
+    mov rsp,rbp
+    mov rbp,[rsp]
+
+    ; deallocate space for rbp
+    add rsp,32
+
+    ; restore vector registers
+    vmovaps v_bound2,       [rsp]
+    vmovaps v_one,          [rsp+256*1]
+    vmovaps v_transpose_x,  [rsp+256*2]
+    vmovaps v_offset_x,     [rsp+256*3]
+    vmovaps v_iter,         [rsp+256*4]
+    vmovaps v_cy,           [rsp+256*5]
+    vmovaps v_cx,           [rsp+256*6]
+
+    ; deallocate space of vector registers
+    add rsp,256*8
+
+    ; restore stack with 16 byte alignment
+    mov rsp,rbp
+    pop rbp
+
+    ; restore general purpose registers
+    pop rcx
+    pop rdx
+    pop rsi
+    pop rdi
+
+    ;---------------------------------------
+    ; end of function call block
+    ;---------------------------------------
 
     add x,8
     cmp x,x1
     jle .loop_x
 
-.discard_pixels:
-
     inc y
     cmp y,y1
     jle .loop_y
 
-    ;add rsp,256
+    ; restore calle-save registers
     pop r11
     pop r12
     pop r13
@@ -823,10 +888,10 @@ mdb_kernel_process_block:
     pop r15
     pop rbx
 
-    ;mov rsp,rbp
-    ;pop rbp                 ; restore stack
+    ; restore stack
+    mov rsp,rbp
+    pop rbp
 
     xor rax,rax
-    leave
     ret
 %pop

@@ -1,6 +1,6 @@
 #include "cpu_features.h"
 #include <string.h>
-#include <mdb/tools/utils.h>
+#include <mdb/tools/compiler.h>
 
 #define __cpu_probe_feature(mask, feature, name) \
 if((mask) & (feature)) \

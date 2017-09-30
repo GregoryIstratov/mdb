@@ -3,7 +3,7 @@
 
 #include <mdb/sched/rsched.h>
 #include <mdb/kernel/mdb_kernel.h>
-#include <mdb/tools/utils.h>
+#include <mdb/tools/compiler.h>
 #include <string.h>
 #include <mdb/tools/log.h>
 
@@ -22,6 +22,7 @@ struct render_ctx
 {
     rsched* sched;
     mdb_kernel* kernel;
+    surface* surf;
     float shift_x, shift_y, scale;
     uint32_t bailout;
     uint32_t width;
@@ -195,7 +196,7 @@ static void render_update(void* data, void* context)
 {
     struct render_ctx* ctx = (struct render_ctx*)context;
 
-    mdb_kernel_set_surface(ctx->kernel, (float*)data);
+    surface_set_buffer(ctx->surf, data);
 
     rsched_yield(ctx->sched, RSCHED_ROOT);
 
@@ -209,7 +210,7 @@ static void render_kernel_proc_fun(uint32_t x0, uint32_t x1, uint32_t y0, uint32
     mdb_kernel_process_block(rend_ctx->kernel, x0, x1, y0, y1);
 }
 
-int render_run(rsched* sched, mdb_kernel* kernel, uint32_t width, uint32_t height)
+int render_run(rsched* sched, mdb_kernel* kernel, surface* surf, uint32_t width, uint32_t height)
 {
     struct render_ctx ctx;
 
@@ -222,6 +223,7 @@ int render_run(rsched* sched, mdb_kernel* kernel, uint32_t width, uint32_t heigh
 
     ctx.sched = sched;
     ctx.kernel = kernel;
+    ctx.surf = surf;
 
     rsched_set_proc_fun(sched, &render_kernel_proc_fun, &ctx);
 

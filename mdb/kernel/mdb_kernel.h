@@ -34,6 +34,7 @@
  */
 
 #include <stdint.h>
+#include <mdb/surface/surface.h>
 
 typedef struct _mdb_kernel mdb_kernel;
 
@@ -59,9 +60,8 @@ void mdb_kernel_set_shift(mdb_kernel* mdb, float shift_x, float shift_y);
 void mdb_kernel_set_bailout(mdb_kernel* mdb, uint32_t bailout);
 
 /* Set surface to the kernel
- * Surface must be a continuous memory block of 32 bit floats of size WIDTH x HEIGHT
  */
-void mdb_kernel_set_surface(mdb_kernel* mdb, float* f32surface);
+void mdb_kernel_set_surface(mdb_kernel* mdb, surface* surf);
 
 /* Some kernels keep their internal parameters precomputed
  * these parameters can have circular dependencies and/or

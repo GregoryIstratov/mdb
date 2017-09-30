@@ -18,7 +18,7 @@ static struct
     float shift_x;
     float shift_y;
     float scale;
-    float* f32surface;
+    surface* surf;
     float width_r;
     float height_r;
     float aspect_ratio;
@@ -30,6 +30,7 @@ static const char* ver_min = "0";
 
 
 
+__export_sym
 int mdb_kernel_metadata_query(int query, char* buff, uint32_t buff_size)
 {
     switch(query)
@@ -48,21 +49,25 @@ int mdb_kernel_metadata_query(int query, char* buff, uint32_t buff_size)
     }
 }
 
+__export_sym
 int mdb_kernel_cpu_features(void)
 {
     return CPU_FEATURE_AVX2;
 }
 
+__export_sym
 void mdb_kernel_init(void)
 {
 
 }
 
+__export_sym
 void mdb_kernel_shutdown(void)
 {
 
 }
 
+__export_sym
 void mdb_kernel_set_size(uint32_t width, uint32_t height)
 {
     mdb.width = width;
@@ -72,32 +77,37 @@ void mdb_kernel_set_size(uint32_t width, uint32_t height)
     mdb.aspect_ratio = (float)width / height;
 }
 
+__export_sym
 void mdb_kernel_set_scale(float scale)
 {
     mdb.scale = scale;
 }
 
+__export_sym
 void mdb_kernel_set_shift(float shift_x, float shift_y)
 {
     mdb.shift_x = shift_x;
     mdb.shift_y = shift_y;
 }
 
-
+__export_sym
 void mdb_kernel_set_bailout(uint32_t bailout)
 {
     mdb.bailout = bailout;
 }
 
-void mdb_kernel_set_surface(float* buffer)
+__export_sym
+void mdb_kernel_set_surface(surface* surf)
 {
-    mdb.f32surface = buffer;
+    mdb.surf = surf;
 }
 
+__export_sym
 void mdb_kernel_submit_changes(void)
 {
 }
 
+__export_sym
 void mdb_kernel_process_block(uint32_t x0, uint32_t x1, uint32_t y0, uint32_t y1)
 {
     __m256 v_scale = _mm256_set1_ps(mdb.scale);
@@ -182,8 +192,7 @@ void mdb_kernel_process_block(uint32_t x0, uint32_t x1, uint32_t y0, uint32_t y1
             alignas(32) float pixels[8];
             _mm256_store_ps(pixels, v_i);
 
-            surface_set_pixels(mdb.f32surface, mdb.width, mdb.height, pixels, 8, x, y);
-
+            surface_set_pixels(mdb.surf, x, y, 8, pixels);
         }
     }
 }

@@ -9,3 +9,5 @@
 #define __hot	__attribute__((__hot__))
 
 #define return_if(cond, val) if(cond) return (val);
+
+#define __export_sym __attribute__ ((visibility ("default")))

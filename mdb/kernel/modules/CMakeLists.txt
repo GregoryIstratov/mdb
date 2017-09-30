@@ -8,9 +8,10 @@ message("Modules binary dir: ${CMAKE_CURRENT_BINARY_DIR}")
 
 message("Kernel avx2_fma status: ${MDB_ENABLE_AVX2_FMA_KERNEL}")
 
-add_library(kernel_module STATIC
-        kernel_module.c
-        kernel_module.h)
+#add_library(kernel_module STATIC
+#        kernel_module.c
+#        kernel_module.h
+#        )
 
 
 if(MDB_ENABLE_AVX_FMA_ASM_KERNEL)
@@ -67,7 +68,7 @@ foreach(file ${files})
     message("Found kernel [${kname}]")
 
     add_library(${kname} MODULE ${file})
-    target_link_libraries(kernel_module)
+    #target_link_libraries(${kname} kernel_module)
     set_target_properties(${kname} PROPERTIES PREFIX "")
     set_target_properties(${kname}
             PROPERTIES
