@@ -9,6 +9,8 @@
 
 #if defined(OGL_RENDER_ENABLED)
 #include <mdb/render/ogl_render.h>
+#include <mdb/kernel/bits/mdb_kernel_event.h>
+
 #endif
 
 static const char* render_control_keys =
@@ -25,176 +27,24 @@ struct render_ctx
     rsched* sched;
     mdb_kernel* kernel;
     surface* surf;
-    float shift_x, shift_y, scale;
-    uint32_t bailout;
     uint32_t width;
     uint32_t height;
     struct block_size grain;
 };
 
-
-
-static void render_update_scale(struct render_ctx* ctx)
+static void render_key_callback(void* context, int key, int scancode, int action, int mods)
 {
-    mdb_kernel_set_scale(ctx->kernel, ctx->scale);
-    mdb_kernel_submit_changes(ctx->kernel);
-    PARAM_INFO("scale", "%f", ctx->scale);
-}
+    struct render_ctx* ctx = (struct render_ctx*)context;
 
-static void render_update_shift(struct render_ctx* ctx)
-{
-    mdb_kernel_set_shift(ctx->kernel, ctx->shift_x, ctx->shift_y);
-    mdb_kernel_submit_changes(ctx->kernel);
-    PARAM_INFO("shift", "%f %f", ctx->shift_x, ctx->shift_y);
-}
+    struct mdb_event_keyboard event =
+            {
+                    .key = key,
+                    .scancode = scancode,
+                    .action = action,
+                    .mods = mods
+            };
 
-static void render_update_bailout(struct render_ctx* ctx)
-{
-    mdb_kernel_set_bailout(ctx->kernel, ctx->bailout);
-    PARAM_INFO("bailout", "%u", ctx->bailout);
-}
-
-static uint32_t iterations_get_mod(struct render_ctx* ctx)
-{
-    if (ctx->bailout < 256)
-        return 1;
-    if (ctx->bailout < 512)
-        return 2;
-    if (ctx->bailout < 1024)
-        return 4;
-    if (ctx->bailout < 2048)
-        return 8;
-    if (ctx->bailout < 4096)
-        return 32;
-    if (ctx->bailout < 8192)
-        return 128;
-    if (ctx->bailout < 16384)
-        return 256;
-
-    return 512;
-}
-
-static void iterations_increase(struct render_ctx* ctx)
-{
-    ctx->bailout += iterations_get_mod(ctx);
-}
-
-static void iterations_decrease(struct render_ctx* ctx)
-{
-    if (ctx->bailout > 1) ctx->bailout -= iterations_get_mod(ctx);
-}
-
-static void shift_right(struct render_ctx* ctx)
-{
-    ctx->shift_x += 0.1 * ctx->scale;
-}
-
-static void shift_left(struct render_ctx* ctx)
-{
-    ctx->shift_x -= 0.1 * ctx->scale;
-}
-
-static void shift_up(struct render_ctx* ctx)
-{
-    ctx->shift_y -= 0.1 * ctx->scale;
-}
-
-static void shift_down(struct render_ctx* ctx)
-{
-    ctx->shift_y += 0.1 * ctx->scale;
-}
-
-static void render_key_callback(int key, void* user_ctx)
-{
-    struct render_ctx* ctx = (struct render_ctx*)user_ctx;
-
-    switch (key)
-    {
-        case GLFW_KEY_1:
-        {
-            ctx->scale *= 1.1;
-            render_update_scale(ctx);
-            return;
-        }
-        case GLFW_KEY_2:
-        {
-            ctx->scale *= 0.9;
-            render_update_scale(ctx);
-            return;
-        }
-        case GLFW_KEY_3:
-        {
-            iterations_decrease(ctx);
-            render_update_bailout(ctx);
-            return;
-        }
-        case GLFW_KEY_4:
-        {
-            iterations_increase(ctx);
-            render_update_bailout(ctx);
-            return;
-        }
-        case GLFW_KEY_RIGHT:
-        {
-            shift_right(ctx);
-            render_update_shift(ctx);
-            return;
-        }
-        case GLFW_KEY_LEFT:
-        {
-            shift_left(ctx);
-            render_update_shift(ctx);
-            return;
-        }
-        case GLFW_KEY_UP:
-        {
-            shift_up(ctx);
-            render_update_shift(ctx);
-            return;
-        }
-        case GLFW_KEY_DOWN:
-        {
-            shift_down(ctx);
-            render_update_shift(ctx);
-            return;
-        }
-        case GLFW_KEY_F1:
-        {
-            ctx->scale   = 2.793042f;
-            ctx->shift_x = -0.860787f;
-            ctx->shift_y = 0.0f;
-            render_update_shift(ctx);
-            render_update_scale(ctx);
-            break;
-        }
-        case GLFW_KEY_F2:
-        {
-            ctx->scale   = 0.00188964f;
-            ctx->shift_x = -1.347385054652062f;
-            ctx->shift_y = 0.063483549665202f;
-            render_update_shift(ctx);
-            render_update_scale(ctx);
-            break;
-        }
-        case GLFW_KEY_F3:
-        {
-            ctx->shift_x = -0.715882f;
-            ctx->shift_y = 0.287651f;
-            ctx->scale   = 0.057683f;
-            render_update_shift(ctx);
-            render_update_scale(ctx);
-            break;
-        }
-        case GLFW_KEY_F4:
-        {
-            ctx->shift_x = 0.356868f;
-            ctx->shift_y = 0.348140f;
-            ctx->scale   = 0.003869f;
-            render_update_shift(ctx);
-            render_update_scale(ctx);
-            break;
-        }
-    }
+    mdb_kernel_event(ctx->kernel, MDB_EVENT_KEYBOARD, &event);
 }
 
 static void render_resize(int width, int height, void* context)
@@ -205,7 +55,6 @@ static void render_resize(int width, int height, void* context)
     ctx->height = (uint32_t)height;
 
     mdb_kernel_set_size(ctx->kernel, ctx->width, ctx->height);
-    mdb_kernel_submit_changes(ctx->kernel);
 
     //rsched_queue_resize(ctx->sched, ctx->width * ctx->height / (ctx->grain.x * ctx->grain.y));
     rsched_create_tasks(ctx->sched, ctx->width, ctx->height, &ctx->grain);
@@ -234,10 +83,6 @@ int render_run(rsched* sched, mdb_kernel* kernel, surface* surf, uint32_t width,
 {
     struct render_ctx ctx;
 
-    ctx.bailout = 256;
-    ctx.scale   = 0.00188964f;
-    ctx.shift_x = -1.347385054652062f;
-    ctx.shift_y = 0.063483549665202f;
     ctx.width   = width;
     ctx.height  = height;
 

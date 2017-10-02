@@ -87,9 +87,8 @@ int main(int argc, char** argv)
             goto shutdown;
         }
 
-        mdb_kernel_set_surface(kernel, surf);
-        mdb_kernel_set_bailout(kernel, (uint32_t) args.bailout);
         mdb_kernel_set_size(kernel, (uint32_t) args.width, (uint32_t) args.height);
+        mdb_kernel_set_surface(kernel, surf);
 
         benchmark* bench = NULL;
         uint32_t runs = args.mode == MODE_ONESHOT ? 1 : (uint32_t)args.benchmark_runs;

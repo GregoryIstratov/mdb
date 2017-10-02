@@ -39,5 +39,8 @@ void surface_set_buffer(surface* surf, void* buffer);
 __export_sym
 void surface_set_pixels(surface* surf, uint32_t x, uint32_t y, uint32_t n, void* pix_data);
 
-
+/* Save surface to Radiance HDR RGBE image format.
+ * https://en.wikipedia.org/wiki/RGBE_image_format
+ * Returns 0 on success.
+ * */
 int surface_save_image_hdr(surface* surf, const char* filename);

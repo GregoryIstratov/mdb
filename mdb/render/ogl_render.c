@@ -337,8 +337,11 @@ static void APIENTRY openglCallbackFunction(
 
 static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
-    UNUSED_PARAM(scancode);
-    UNUSED_PARAM(mods);
+    if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
+    {
+        glfwSetWindowShouldClose(window, GLFW_TRUE);
+        return;
+    }
 
     if (action == GLFW_PRESS || action == GLFW_REPEAT)
     {
@@ -349,25 +352,22 @@ static void key_callback(GLFWwindow* window, int key, int scancode, int action, 
             {
                 g_exposure *= 0.9;
                 PARAM_INFO("exposure","%f", g_exposure);
-                break;
+                return;
             }
             case GLFW_KEY_6:
             {
                 g_exposure *= 1.1;
                 PARAM_INFO("exposure","%f", g_exposure);
-                break;
+                return;
             }
 
             default:
-            {
-                if (g_user_key_callback)
-                    g_user_key_callback(key, g_user_ctx);
-            }
+                break;
         }
     }
 
-    if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
-        glfwSetWindowShouldClose(window, GLFW_TRUE);
+    if (g_user_key_callback)
+        g_user_key_callback(g_user_ctx, key, scancode, action, mods);
 }
 
 static void resize_callback(GLFWwindow* window, int width, int height)

@@ -1,7 +1,7 @@
 #pragma once
 
-/* Mandelbrot kernel management.
- * A kernel is a main driver for computing mandelbrot set
+/* Kernel Management API.
+ * A kernel is a main driver for computing fractal
  * Usually kernel represents an algorithm itself with
  * its own properties which can be managed with the interface
  * described bellow.
@@ -9,28 +9,11 @@
  * but all of them must fit into some common properties which all kernels
  * should have to interact with the program.
  *
- * A brief list of these properties:
- * - Resolution Width x Height
- * - Shift coordinates of a central point
- * - Scale - scale of the current coordinates
- * - Bailout - a maximum number of iterations when the point considered bailed out.
- * - Surface - 32-bit float texture WIDTH x HEIGHT size
- * - Process function that takes current surface coordinates, computes values for each pixel
- * of the given block of the surface area, and writes these values to the area data *
- *
- * Kernels can be internal and external
- * Internal kernels are kernels which are built inside the program
- * External kernels are kernels which built as a module and can be loaded dynamically
- * without whole program recompilation
- * External kernels must implement special API described in mdb/external/mdb_kernel_ext.h
- * and put into special folder so dynamic loader can find and load them.
- *
  * Kernels are invoked by the scheduler in parallel, so they must be thread-safe.
- * For performance reasons kernels should not contain any blocking code, dynamic memory allocations
+ * For performance reasons kernel process functions should not contain any blocking code, dynamic memory allocations
  * and IO operations.
  *
- * Examples of kernels with good performance can be found in sources like avx2, avx2_fma, avx2_fma_asm
- * which were profiled many times and very good tuned.
+ * Examples of kernels can be found in modules/kernels
  */
 
 #include <stdint.h>
@@ -47,33 +30,15 @@ int mdb_kernel_create(mdb_kernel** pmdb, const char* kernel_name);
 /* Destroy kernel and release all resources */
 void mdb_kernel_destroy(mdb_kernel* mdb);
 
+/* Create a new event in the kernel */
+int mdb_kernel_event(mdb_kernel* mdb, int event_type, void* event);
+
 /* Set dimensions of the kernel */
 void mdb_kernel_set_size(mdb_kernel* mdb, uint32_t width, uint32_t height);
-
-/* Set scale of complex surface */
-void mdb_kernel_set_scale(mdb_kernel* mdb, float scale);
-
-/* Set shift of the central point of complex surface */
-void mdb_kernel_set_shift(mdb_kernel* mdb, float shift_x, float shift_y);
-
-/* Set bailout */
-void mdb_kernel_set_bailout(mdb_kernel* mdb, uint32_t bailout);
 
 /* Set surface to the kernel
  */
 void mdb_kernel_set_surface(mdb_kernel* mdb, surface* surf);
-
-/* Some kernels keep their internal parameters precomputed
- * these parameters can have circular dependencies and/or
- * can be heavy to compute, etc.
- * Such kernels can implement relaxed parameter setup, this means
- * for example if scale changed a kernel might not immediately
- * update its internal parameters and parameters will be updated
- * only after this function call.
- * This allows a batch parameters changing to decrease performance impact.
- */
-void mdb_kernel_submit_changes(mdb_kernel* mdb);
-
 
 /* Computes values for mandelbrot set surface of given surface area.
  * This invokes the main algorithm of the kernel and writes computed values

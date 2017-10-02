@@ -4,7 +4,7 @@
 
 typedef void (*data_update_callback)(void*, void*);
 
-typedef void(*ogl_render_key_callback)(int, void*);
+typedef void(*ogl_render_key_callback)(void*, int, int, int, int);
 
 typedef void(*ogl_render_resize_callback)(int,int, void*);
 
