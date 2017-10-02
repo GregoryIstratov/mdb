@@ -115,13 +115,13 @@ static void print_shader_log(const char* text, GLuint object)
     else if (glIsProgram(object))
         glGetProgramInfoLog(object, log_length, NULL, log);
 
-    LOG_ERROR("%s", log);
+    LOG_ERROR("%s: %s", text, log);
     free(log);
 }
 
 static GLuint create_shader(const char* filename, const char* defines, GLenum type)
 {
-    static const char* version_define = "#version 440 \n";
+    static const char* version_define = "#version 130 \n";
 
     char *source = file_read_shader_source(filename);
 
@@ -167,9 +167,7 @@ static GLuint create_screen_quad_program()
     GLuint gs, vs, fs;
     GLuint program;
 
-    if ((gs = create_shader("shaders/screen_quad_gs.glsl", NULL, GL_GEOMETRY_SHADER)) == 0)
-        exit(EXIT_FAILURE);
-    if ((vs = create_shader("shaders/screen_quad_gs_vs.glsl", NULL, GL_VERTEX_SHADER)) == 0)
+    if ((vs = create_shader("shaders/screen_quad_vs2.glsl", NULL, GL_VERTEX_SHADER)) == 0)
         exit(EXIT_FAILURE);
     if ((fs = create_shader("shaders/screen_quad_fs.glsl",colors_enabled? color_define : NULL, GL_FRAGMENT_SHADER)) == 0)
         exit(EXIT_FAILURE);
@@ -177,7 +175,6 @@ static GLuint create_screen_quad_program()
 
     program = glCreateProgram();
 
-    glAttachShader(program, gs);
     glAttachShader(program, vs);
     glAttachShader(program, fs);
     glLinkProgram(program);
@@ -221,6 +218,32 @@ static void wait_buffer(GLsync* syncObj)
             gWaitCount++;
         }
     }
+}
+
+static GLuint squad_vao;
+static GLuint squad_vbo;
+
+static const GLfloat squad_data[] = {
+  	  -1.0f, -1.0f, 0.0f,
+     	   1.0f, -1.0f, 0.0f,
+    	  -1.0f,  1.0f, 0.0f,
+          -1.0f,  1.0f, 0.0f,
+           1.0f, -1.0f, 0.0f,
+           1.0f,  1.0f, 0.0f,
+        };
+
+static void create_squad(void)
+{
+	glGenVertexArrays(1, &squad_vao);
+
+	glBindVertexArray(squad_vao);
+
+	glGenBuffers(1, &squad_vbo);
+
+	glBindBuffer(GL_ARRAY_BUFFER, squad_vbo);
+
+	glBufferData(GL_ARRAY_BUFFER, sizeof(squad_data), squad_data, GL_STATIC_DRAW);
+	 
 }
 
 static void create_pbo(struct pbo_t* pbo, uint32_t width, uint32_t height, data_update_callback callback, void* ctx)
@@ -453,7 +476,7 @@ void ogl_render_create(ogl_render** _rend, uint32_t width, uint32_t height, data
 
     LOG_INFO("OpenGL %s, GLSL %s", glGetString(GL_VERSION), glGetString(GL_SHADING_LANGUAGE_VERSION));
 
-
+/*
 #if !defined(NDEBUG)
     if (glfwExtensionSupported("GL_ARB_debug_output"))
     {
@@ -464,7 +487,7 @@ void ogl_render_create(ogl_render** _rend, uint32_t width, uint32_t height, data
         glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, NULL, 1);
     }
 #endif
-
+*/
     glEnable(GL_FRAMEBUFFER_SRGB);
 
     glfwSwapInterval(0);
@@ -479,7 +502,8 @@ void ogl_render_create(ogl_render** _rend, uint32_t width, uint32_t height, data
 
     create_pbo(&rend->pbo, width, height, cb, user_ctx);
 
-    glGenVertexArrays(1, &rend->vao);
+    //glGenVertexArrays(1, &rend->vao);
+    create_squad();
 
     *_rend = rend;
 }
@@ -512,12 +536,28 @@ void ogl_render_render_loop(ogl_render* rend)
         GLint exposure_location = glGetUniformLocation(rend->program, "exposure");
         glUniform1f(exposure_location, g_exposure);
 
+        glBindVertexArray(squad_vao);
+
+	// 1rst attribute buffer : vertices
+	glEnableVertexAttribArray(0);
+	glBindBuffer(GL_ARRAY_BUFFER, squad_vbo);
+	glVertexAttribPointer(
+		0,                  // attribute 0. No particular reason for 0, but must match the layout in the shader.
+		3,                  // size
+		GL_FLOAT,           // type
+		GL_FALSE,           // normalized?
+		0,                  // stride
+		(void*)0            // array buffer offset
+	);
+
+
         update_pbo(&rend->pbo);
         render_pbo(&rend->pbo);
 
-        glBindVertexArray(rend->vao);
+	// Draw the triangles !
+	glDrawArrays(GL_TRIANGLES, 0, 6); // 2*3 indices starting at 0 -> 2 triangles
 
-        glDrawArrays(GL_POINTS, 0, 1);
+	glDisableVertexAttribArray(0);
 
         lock_buffer(&gSyncObject);
 

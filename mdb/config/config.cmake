@@ -44,14 +44,14 @@ set(MDB_KERNEL_DEBUG Off)
 # Written in intrinsics to maximize performance gain of vectorisation CPU extension.
 # Your CPU and compiler must support AVX2 and FMA features.
 #
-set(MDB_ENABLE_AVX2_FMA_KERNEL On)
+set(MDB_ENABLE_AVX2_FMA_KERNEL Off)
 
 # Enable building a kernel that using avx2 instruction set ( without using FMA )
 # thus this may be slightly slower than that one above which using FMA.
 # This kernel is also written in intrinsics to maximize performance gain of vectorisation CPU extension.
 # Your CPU and compiler must support AVX2 feature.
 #
-set(MDB_ENABLE_AVX2_KERNEL On)
+set(MDB_ENABLE_AVX2_KERNEL Off)
 
 
 # Enable building a kernel that is written in regular way ( plain C without intrinsics )
