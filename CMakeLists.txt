@@ -46,7 +46,10 @@ set(SOURCE_FILES
         mdb/tools/cpu_features.c
         mdb/tools/cpu_features.h
         mdb/surface/surface.c
-        mdb/surface/surface.h mdb/kernel/bits/mdb_kernel_error.h mdb/kernel/bits/mdb_kernel_event.h)
+        mdb/surface/surface.h
+        mdb/kernel/bits/mdb_kernel_error.h
+        mdb/kernel/bits/mdb_kernel_event.h
+        )
 
 
 if(OGL_RENDER_ENABLED)

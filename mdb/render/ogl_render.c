@@ -402,15 +402,17 @@ void ogl_render_create(ogl_render** _rend, uint32_t width, uint32_t height, data
     g_user_ctx = user_ctx;
     g_user_key_callback = key_cb;
 
-
     glfwSetErrorCallback(error_callback);
 
     if (!glfwInit())
         exit(EXIT_FAILURE);
 
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 4);
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+
+    //printf("OpenGL %d.%d\n", GLVersion.major, GLVersion.minor);
+
+    //glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+    //glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 4);
+    //glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
     rend->window = glfwCreateWindow(width, height, "Mandlebrot", NULL, NULL);
 
@@ -434,26 +436,38 @@ void ogl_render_create(ogl_render** _rend, uint32_t width, uint32_t height, data
         exit(EXIT_FAILURE);
     }
 
+    if (!glfwExtensionSupported("GL_ARB_buffer_storage"))
+    {
+        LOG_ERROR("GL_ARB_buffer_storage is not supported.");
+        exit(EXIT_FAILURE);
+    }
+
+    /*
+    if(!(GLVersion.major >= 4 && GLVersion.minor >= 4))
+    {
+        LOG_ERROR("Unsupported OpenGL version. OpenGL 4.4 and above required. Current OpenGL %i.%i",
+                  GLVersion.major, GLVersion.minor);
+        exit(EXIT_FAILURE);
+    }
+    */
+
+    LOG_INFO("OpenGL %s, GLSL %s", glGetString(GL_VERSION), glGetString(GL_SHADING_LANGUAGE_VERSION));
+
+
 #if !defined(NDEBUG)
-    // Enable the debug callback
-    glEnable(GL_DEBUG_OUTPUT);
-    glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
-    glDebugMessageCallback(openglCallbackFunction, NULL);
-    glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, NULL, 1);
+    if (glfwExtensionSupported("GL_ARB_debug_output"))
+    {
+        // Enable the debug callback
+        glEnable(GL_DEBUG_OUTPUT);
+        glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
+        glDebugMessageCallback(openglCallbackFunction, NULL);
+        glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, NULL, 1);
+    }
 #endif
 
     glEnable(GL_FRAMEBUFFER_SRGB);
 
     glfwSwapInterval(0);
-
-    //printf("OpenGL %d.%d\n", GLVersion.major, GLVersion.minor);
-    LOG_INFO("OpenGL %s, GLSL %s", glGetString(GL_VERSION), glGetString(GL_SHADING_LANGUAGE_VERSION));
-
-    if(!(GLVersion.major >= 4 && GLVersion.minor >= 4))
-    {
-        LOG_ERROR("Unsupported OpenGL version. OpenGL 4.4 and above required.");
-        exit(EXIT_FAILURE);
-    }
 
     rend->program = create_screen_quad_program();
 

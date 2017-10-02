@@ -29,7 +29,7 @@ if(MDB_ENABLE_AVX_FMA_ASM_KERNEL)
             VERBATIM
             )
 
-    add_library(mdb_avx2_fma_asm SHARED ${NASM_BUILD_DIR}/mdb_asm_kernel.o)
+    add_library(mdb_avx2_fma_asm MODULE ${NASM_BUILD_DIR}/mdb_asm_kernel.o)
     set_target_properties(mdb_avx2_fma_asm PROPERTIES LINKER_LANGUAGE C)
     set_target_properties(mdb_avx2_fma_asm PROPERTIES PREFIX "")
     set_target_properties(mdb_avx2_fma_asm
@@ -44,17 +44,17 @@ foreach(file ${files})
 
     get_filename_component(kname ${file} NAME_WE)
 
-    if((${kname} STREQUAL avx2_fma) AND NOT ${MDB_ENABLE_AVX2_FMA_KERNEL})
+    if((${kname} STREQUAL mdb_avx2_fma) AND NOT ${MDB_ENABLE_AVX2_FMA_KERNEL})
         message("Found kernel [${kname}] status DISABLED")
         continue()
     endif()
 
-    if((${kname} STREQUAL avx2) AND NOT ${MDB_ENABLE_AVX2_KERNEL})
+    if((${kname} STREQUAL mdb_avx2) AND NOT ${MDB_ENABLE_AVX2_KERNEL})
         message("Found kernel [${kname}] status DISABLED")
         continue()
     endif()
 
-    if((${kname} STREQUAL native) AND NOT ${MDB_ENABLE_NATIVE_KERNEL})
+    if((${kname} STREQUAL mdb_native) AND NOT ${MDB_ENABLE_NATIVE_KERNEL})
         message("Found kernel [${kname}] status DISABLED")
         continue()
     endif()
