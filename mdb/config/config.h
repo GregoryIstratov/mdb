@@ -43,7 +43,7 @@
  * Written in intrinsics to maximize performance gain of vectorisation CPU extension.
  * Your CPU and compiler must support AVX2 and FMA features.
  */
-/* #undef MDB_ENABLE_AVX2_FMA_KERNEL */
+#define MDB_ENABLE_AVX2_FMA_KERNEL
 
 /* Enable building a kernel that using avx2 instruction set ( without using FMA )
  * thus this may be slightly slower than that one above which using FMA.

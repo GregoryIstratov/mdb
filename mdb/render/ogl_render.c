@@ -164,7 +164,7 @@ static GLuint create_screen_quad_program()
     const char* color_define = "#define ENABLE_COLORS \n";
 
     GLint link_ok = GL_FALSE;
-    GLuint gs, vs, fs;
+    GLuint vs, fs;
     GLuint program;
 
     if ((vs = create_shader("shaders/screen_quad_vs2.glsl", NULL, GL_VERTEX_SHADER)) == 0)
@@ -476,7 +476,7 @@ void ogl_render_create(ogl_render** _rend, uint32_t width, uint32_t height, data
 
     LOG_INFO("OpenGL %s, GLSL %s", glGetString(GL_VERSION), glGetString(GL_SHADING_LANGUAGE_VERSION));
 
-/*
+
 #if !defined(NDEBUG)
     if (glfwExtensionSupported("GL_ARB_debug_output"))
     {
@@ -487,7 +487,7 @@ void ogl_render_create(ogl_render** _rend, uint32_t width, uint32_t height, data
         glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, NULL, 1);
     }
 #endif
-*/
+
     glEnable(GL_FRAMEBUFFER_SRGB);
 
     glfwSwapInterval(0);

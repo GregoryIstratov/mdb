@@ -1,3 +1,7 @@
+#extension GL_ARB_explicit_attrib_location : require
+#extension GL_ARB_explicit_uniform_location : require
+#extension GL_ARB_shading_language_420pack : require
+
 in  vec2 texcoord;
 out vec4 colour;
 
