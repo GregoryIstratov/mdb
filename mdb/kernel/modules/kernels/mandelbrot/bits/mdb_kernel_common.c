@@ -1,7 +1,3 @@
-//
-// Created by greg on 02.10.17.
-//
-
 #include "mdb_kernel_common.h"
 
 static uint32_t bailout_get_mod(uint32_t bailout)
@@ -62,12 +58,12 @@ static int event_keyboard(struct mdb_event_keyboard* event)
             }
             case MDB_KEY_UP:
             {
-                mdb.shift_y -= 0.1 * mdb.scale;
+                mdb.shift_y += 0.1 * mdb.scale;
                 break;
             }
             case MDB_KEY_DOWN:
             {
-                mdb.shift_y += 0.1 * mdb.scale;
+                mdb.shift_y -= 0.1 * mdb.scale;
                 break;
             }
             case MDB_KEY_F1:
@@ -81,20 +77,20 @@ static int event_keyboard(struct mdb_event_keyboard* event)
             {
                 mdb.scale = 0.00188964f;
                 mdb.shift_x = -1.347385054652062f;
-                mdb.shift_y = 0.063483549665202f;
+                mdb.shift_y = -0.063483549665202f;
                 break;
             }
             case MDB_KEY_F3:
             {
                 mdb.shift_x = -0.715882f;
-                mdb.shift_y = 0.287651f;
+                mdb.shift_y = -0.287651f;
                 mdb.scale = 0.057683f;
                 break;
             }
             case MDB_KEY_F4:
             {
                 mdb.shift_x = 0.356868f;
-                mdb.shift_y = 0.348140f;
+                mdb.shift_y = -0.348140f;
                 mdb.scale = 0.003869f;
                 break;
             }

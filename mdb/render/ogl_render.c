@@ -14,179 +14,34 @@
 #include <mdb/tools/timer.h>
 #include <mdb/tools/log.h>
 
-#define PBO_SIZE_MULTIPLIER 8
 
-struct pbo_t
-{
-    GLuint texture_id;
-    GLuint buffer_id;
-    uint32_t buff_size;
-    uint32_t width;
-    uint32_t height;
-    data_update_callback data_update;
-    void* update_context;
-    void* data;
-};
+#include "bits/ogl_shader.h"
+#include "bits/ogl_pixel_buffer.h"
+#include "bits/ogl_buffer_sync.h"
+#include "bits/ogl_squad.h"
+
+#define PBO_SIZE_MULTIPLIER 8
 
 struct _ogl_render
 {
     uint32_t window_width;
     uint32_t window_height;
-    GLuint vao;
     GLFWwindow* window;
-    GLuint program;
-    struct pbo_t pbo;
+
+    void* user_ctx;
+    ogl_render_key_callback user_key_cb;
+    ogl_render_resize_callback resize_cb;
+
+    ogl_pixel_buffer* pbo;
+
+    ogl_squad* squad;
+
+    float exposure;
+
+    GLsync sync;
 };
 
-static float g_exposure = 1.0;
-static void* g_user_ctx;
-static ogl_render_key_callback g_user_key_callback;
-static ogl_render_resize_callback g_resize_cb;
-
 static ogl_render* g_rend;
-static GLsync gSyncObject;
-
-static size_t gWaitCount = 0;
-
-static int colors_enabled = 1;
-
-void ogl_render_colors_enabled(int status)
-{
-    colors_enabled = status;
-}
-
-static char* file_read_shader_source(const char* filename)
-{
-    FILE* in = fopen(filename, "rb");
-    if (in == NULL)
-    {
-        LOG_ERROR("Failed to open the file '%s': %s", filename, strerror(errno));
-        return NULL;
-    }
-
-    size_t res_size = BUFSIZ;
-    char* res = (char*)malloc(res_size);
-    size_t nb_read_total = 0;
-
-    while (!feof(in) && !ferror(in)) {
-        if (nb_read_total + BUFSIZ > res_size) {
-            if (res_size > 10 * 1024 * 1024)
-                break;
-            res_size = res_size * 2;
-            res = (char*)realloc(res, res_size);
-        }
-        char* p_res = res + nb_read_total;
-        nb_read_total += fread(p_res, 1, BUFSIZ, in);
-    }
-
-    fclose(in);
-    res = (char*)realloc(res, nb_read_total + 1);
-    res[nb_read_total] = '\0';
-    return res;
-}
-
-static void print_shader_log(const char* text, GLuint object)
-{
-    GLint log_length = 0;
-    if (glIsShader(object))
-        glGetShaderiv(object, GL_INFO_LOG_LENGTH, &log_length);
-    else if (glIsProgram(object))
-        glGetProgramiv(object, GL_INFO_LOG_LENGTH, &log_length);
-    else {
-        LOG_ERROR("Not a shader or a program '%s'", text);
-        return;
-    }
-
-
-    if(log_length == 0)
-    {
-#if !defined(NDEBUG)
-        LOG_DEBUG("%s: OK\n", text);
-#else
-        UNUSED_PARAM(text);
-#endif
-        return;
-    }
-
-    char* log = (char*)malloc(log_length);
-
-    if (glIsShader(object))
-        glGetShaderInfoLog(object, log_length, NULL, log);
-    else if (glIsProgram(object))
-        glGetProgramInfoLog(object, log_length, NULL, log);
-
-    LOG_ERROR("%s: %s", text, log);
-    free(log);
-}
-
-static GLuint create_shader(const char* filename, const char* defines, GLenum type)
-{
-    static const char* version_define = "#version 130 \n";
-
-    char *source = file_read_shader_source(filename);
-
-    if (source == NULL)
-        return 0;
-
-    GLuint res = glCreateShader(type);
-
-    if(defines)
-    {
-        const char* sources[] = { version_define, defines, source};
-
-        glShaderSource(res, 3, sources, NULL);
-    }
-    else
-    {
-        const char* sources[] = {version_define, source};
-
-        glShaderSource(res, 2, sources, NULL);
-    }
-
-    glCompileShader(res);
-    GLint compile_ok = GL_FALSE;
-    glGetShaderiv(res, GL_COMPILE_STATUS, &compile_ok);
-
-    free(source);
-
-    print_shader_log(filename, res);
-    if (compile_ok == GL_FALSE) {
-        glDeleteShader(res);
-        return 0;
-    }
-
-    return res;
-}
-
-
-static GLuint create_screen_quad_program()
-{
-    const char* color_define = "#define ENABLE_COLORS \n";
-
-    GLint link_ok = GL_FALSE;
-    GLuint vs, fs;
-    GLuint program;
-
-    if ((vs = create_shader("shaders/screen_quad_vs2.glsl", NULL, GL_VERTEX_SHADER)) == 0)
-        exit(EXIT_FAILURE);
-    if ((fs = create_shader("shaders/screen_quad_fs.glsl",colors_enabled? color_define : NULL, GL_FRAGMENT_SHADER)) == 0)
-        exit(EXIT_FAILURE);
-
-
-    program = glCreateProgram();
-
-    glAttachShader(program, vs);
-    glAttachShader(program, fs);
-    glLinkProgram(program);
-    glGetProgramiv(program, GL_LINK_STATUS, &link_ok);
-    if (!link_ok) {
-        print_shader_log("glLinkProgram", program);
-        exit(EXIT_FAILURE);
-    }
-
-    return program;
-}
-
 
 static void error_callback(int error, const char* description)
 {
@@ -195,148 +50,6 @@ static void error_callback(int error, const char* description)
     LOG_ERROR("Error: %s", description);
 }
 
-
-
-static void lock_buffer(GLsync* syncObj)
-{
-    if (*syncObj)
-        glDeleteSync(*syncObj);
-
-    *syncObj = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
-}
-
-static void wait_buffer(GLsync* syncObj)
-{
-    if (*syncObj)
-    {
-        while (1)
-        {
-            GLenum waitReturn = glClientWaitSync(*syncObj, GL_SYNC_FLUSH_COMMANDS_BIT, 1);
-            if (waitReturn == GL_ALREADY_SIGNALED || waitReturn == GL_CONDITION_SATISFIED)
-                return;
-
-            gWaitCount++;
-        }
-    }
-}
-
-static GLuint squad_vao;
-static GLuint squad_vbo;
-
-static const GLfloat squad_data[] = {
-  	  -1.0f, -1.0f, 0.0f,
-     	   1.0f, -1.0f, 0.0f,
-    	  -1.0f,  1.0f, 0.0f,
-          -1.0f,  1.0f, 0.0f,
-           1.0f, -1.0f, 0.0f,
-           1.0f,  1.0f, 0.0f,
-        };
-
-static void create_squad(void)
-{
-	glGenVertexArrays(1, &squad_vao);
-
-	glBindVertexArray(squad_vao);
-
-	glGenBuffers(1, &squad_vbo);
-
-	glBindBuffer(GL_ARRAY_BUFFER, squad_vbo);
-
-	glBufferData(GL_ARRAY_BUFFER, sizeof(squad_data), squad_data, GL_STATIC_DRAW);
-	 
-}
-
-static void create_pbo(struct pbo_t* pbo, uint32_t width, uint32_t height, data_update_callback callback, void* ctx)
-{
-    pbo->width = width;
-    pbo->height = height;
-    pbo->buff_size = width*height*sizeof(float);
-    pbo->data_update = callback;
-    pbo->update_context = ctx;
-
-    glGenBuffers(1, &pbo->buffer_id);
-    glBindBuffer(GL_PIXEL_UNPACK_BUFFER, pbo->buffer_id);
-
-    GLuint flags = GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT;
-    glBufferStorage(GL_PIXEL_UNPACK_BUFFER, pbo->buff_size, 0, flags);
-
-    //glBufferData(GL_PIXEL_UNPACK_BUFFER, pbo->buff_size, NULL, GL_STREAM_DRAW);
-
-    pbo->data = glMapBufferRange(GL_PIXEL_UNPACK_BUFFER, 0, pbo->buff_size, flags);
-
-    glGenTextures(1, &pbo->texture_id);
-    glBindTexture(GL_TEXTURE_2D, pbo->texture_id);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_R32F, pbo->width, pbo->height, 0, GL_RED, GL_FLOAT, NULL);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-}
-
-static void update_pbo(struct pbo_t* pbo)
-{
-    wait_buffer(&gSyncObject);
-
-    pbo->data_update(pbo->data, pbo->update_context);
-
-
-    lock_buffer(&gSyncObject);
-
-}
-
-static void render_pbo(struct pbo_t* pbo)
-{
-    glActiveTexture(GL_TEXTURE0);
-
-    glBindBuffer(GL_PIXEL_UNPACK_BUFFER, pbo->buffer_id);
-    glBindTexture(GL_TEXTURE_2D, pbo->texture_id);
-    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, pbo->width, pbo->height, GL_RED, GL_FLOAT, NULL);
-    glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
-}
-
-static void destroy_pbo(struct pbo_t* pbo)
-{
-    glDeleteBuffers(1, &pbo->buffer_id);
-    glDeleteTextures(1, &pbo->texture_id);
-}
-
-
-static void resize_pbo(struct pbo_t* pbo, uint32_t width, uint32_t height)
-{
-    //FIXME spurious corruption on resize
-
-    LOG_DEBUG("enter");
-
-    glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
-    glBindTexture(GL_TEXTURE_2D, 0);
-
-    wait_buffer(&gSyncObject);
-
-    glDeleteBuffers(1, &pbo->buffer_id);
-    glDeleteTextures(1, &pbo->texture_id);
-
-    pbo->width = width;
-    pbo->height = height;
-    pbo->buff_size = width*height*sizeof(float);
-
-    glGenBuffers(1, &pbo->buffer_id);
-    glBindBuffer(GL_PIXEL_UNPACK_BUFFER, pbo->buffer_id);
-
-    GLuint flags = GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT;
-    glBufferStorage(GL_PIXEL_UNPACK_BUFFER, pbo->buff_size, 0, flags);
-
-
-    pbo->data = glMapBufferRange(GL_PIXEL_UNPACK_BUFFER, 0, pbo->buff_size, flags);
-
-    glGenTextures(1, &pbo->texture_id);
-    glBindTexture(GL_TEXTURE_2D, pbo->texture_id);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_R32F, pbo->width, pbo->height, 0, GL_RED, GL_FLOAT, NULL);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-
-
-    lock_buffer(&gSyncObject);
-
-    LOG_DEBUG("leave");
-}
 
 static void APIENTRY openglCallbackFunction(
         GLenum source,
@@ -373,14 +86,14 @@ static void key_callback(GLFWwindow* window, int key, int scancode, int action, 
         {
             case GLFW_KEY_5:
             {
-                g_exposure *= 0.9;
-                PARAM_INFO("exposure","%f", g_exposure);
+                g_rend->exposure *= 0.9;
+                PARAM_INFO("exposure","%f", g_rend->exposure);
                 return;
             }
             case GLFW_KEY_6:
             {
-                g_exposure *= 1.1;
-                PARAM_INFO("exposure","%f", g_exposure);
+                g_rend->exposure *= 1.1;
+                PARAM_INFO("exposure","%f", g_rend->exposure);
                 return;
             }
 
@@ -389,8 +102,8 @@ static void key_callback(GLFWwindow* window, int key, int scancode, int action, 
         }
     }
 
-    if (g_user_key_callback)
-        g_user_key_callback(g_user_ctx, key, scancode, action, mods);
+    if (g_rend->user_key_cb)
+        g_rend->user_key_cb(g_rend->user_ctx, key, scancode, action, mods);
 }
 
 static void resize_callback(GLFWwindow* window, int width, int height)
@@ -400,7 +113,7 @@ static void resize_callback(GLFWwindow* window, int width, int height)
     g_rend->window_width = (uint32_t)width;
     g_rend->window_height = (uint32_t)height;
 
-    if(g_resize_cb)
+    if(g_rend->resize_cb)
     {
         int rem = width % PBO_SIZE_MULTIPLIER;
 
@@ -409,21 +122,24 @@ static void resize_callback(GLFWwindow* window, int width, int height)
             width = width - rem;
         }
 
-        resize_pbo(&g_rend->pbo, width, height);
-        g_resize_cb(width, height, g_user_ctx);
+        ogl_pbo_resize(g_rend->pbo, &g_rend->sync, width, height);
+        g_rend->resize_cb(width, height, g_rend->user_ctx);
     }
 }
 
 
-void ogl_render_create(ogl_render** _rend, uint32_t width, uint32_t height, data_update_callback cb, void* user_ctx, ogl_render_key_callback key_cb)
+void ogl_render_create(ogl_render** _rend, const char* win_title, uint32_t width, uint32_t height, void* user_ctx)
 {
     ogl_render* rend = calloc(1, sizeof(ogl_render));
+    *_rend = rend;
     g_rend = rend;
 
     rend->window_height = height;
     rend->window_width  = width;
-    g_user_ctx = user_ctx;
-    g_user_key_callback = key_cb;
+
+    rend->user_ctx      = user_ctx;
+
+    rend->exposure      = 1.0f;
 
     glfwSetErrorCallback(error_callback);
 
@@ -431,13 +147,11 @@ void ogl_render_create(ogl_render** _rend, uint32_t width, uint32_t height, data
         exit(EXIT_FAILURE);
 
 
-    //printf("OpenGL %d.%d\n", GLVersion.major, GLVersion.minor);
-
-    //glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-    //glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 4);
-    //glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
-    rend->window = glfwCreateWindow(width, height, "Mandlebrot", NULL, NULL);
+    rend->window = glfwCreateWindow(width, height, win_title, NULL, NULL);
 
     if (!rend->window)
     {
@@ -446,7 +160,8 @@ void ogl_render_create(ogl_render** _rend, uint32_t width, uint32_t height, data
     }
 
     glfwSetWindowSizeLimits(rend->window, 640, 480, GLFW_DONT_CARE, GLFW_DONT_CARE);
-    glfwSetKeyCallback(rend->window, key_callback);
+
+    glfwSetKeyCallback(rend->window, &key_callback);
 
     //FIXME disabled due to spurious buffer storage corruption on resize
     //glfwSetWindowSizeCallback(rend->window, &resize_callback);
@@ -465,15 +180,6 @@ void ogl_render_create(ogl_render** _rend, uint32_t width, uint32_t height, data
         exit(EXIT_FAILURE);
     }
 
-    /*
-    if(!(GLVersion.major >= 4 && GLVersion.minor >= 4))
-    {
-        LOG_ERROR("Unsupported OpenGL version. OpenGL 4.4 and above required. Current OpenGL %i.%i",
-                  GLVersion.major, GLVersion.minor);
-        exit(EXIT_FAILURE);
-    }
-    */
-
     LOG_INFO("OpenGL %s, GLSL %s", glGetString(GL_VERSION), glGetString(GL_SHADING_LANGUAGE_VERSION));
 
 
@@ -491,22 +197,34 @@ void ogl_render_create(ogl_render** _rend, uint32_t width, uint32_t height, data
     glEnable(GL_FRAMEBUFFER_SRGB);
 
     glfwSwapInterval(0);
+}
 
-    rend->program = create_screen_quad_program();
-
-    int width_rem = width % PBO_SIZE_MULTIPLIER;
+void ogl_render_init_render_target(ogl_render* rend, ogl_data_update_callback cb)
+{
+    int width_rem = rend->window_width % PBO_SIZE_MULTIPLIER;
     if(width_rem)
     {
-        width -= width_rem;
+        rend->window_width -= width_rem;
     }
 
-    create_pbo(&rend->pbo, width, height, cb, user_ctx);
-
-    //glGenVertexArrays(1, &rend->vao);
-    create_squad();
-
-    *_rend = rend;
+    ogl_pbo_create(&rend->pbo, rend->window_width, rend->window_height, cb, rend->user_ctx);
 }
+
+void ogl_render_init_screen(ogl_render* rend, bool color_enabled)
+{
+    ogl_squad_create(&rend->squad, color_enabled);
+}
+
+void ogl_render_set_key_callback(ogl_render* rend, ogl_render_key_callback cb)
+{
+    rend->user_key_cb = cb;
+}
+
+void ogl_render_set_resize_callback(ogl_render* rend, ogl_render_resize_callback cb)
+{
+    rend->resize_cb = cb;
+}
+
 
 void ogl_render_render_loop(ogl_render* rend)
 {
@@ -515,10 +233,14 @@ void ogl_render_render_loop(ogl_render* rend)
     {
         double start = sample_timer();
 
-        wait_buffer(&gSyncObject);
+        ogl_pbo_update(rend->pbo, &rend->sync);
 
+        ogl_buffer_wait(&rend->sync);
+
+        /* If resize enabled
+         *
         int vp_bot = 0;
-        int vp_left = rend->window_width - rend->pbo.width;
+        int vp_left = rend->window_width - rend->pbo->width;
 
         if(vp_left < 0)
         {
@@ -528,38 +250,22 @@ void ogl_render_render_loop(ogl_render* rend)
 
         glViewport(vp_left, vp_bot, rend->pbo.width, rend->pbo.height);
 
+        */
+
+        glViewport(0, 0, rend->window_width, rend->window_height);
+
         glClearColor(1.0, 1.0, 1.0, 1.0);
         glClear(GL_COLOR_BUFFER_BIT);
 
-        glUseProgram(rend->program);
+        ogl_squad_begin(rend->squad);
 
-        GLint exposure_location = glGetUniformLocation(rend->program, "exposure");
-        glUniform1f(exposure_location, g_exposure);
+        ogl_squad_set_exposure(rend->squad, rend->exposure);
 
-        glBindVertexArray(squad_vao);
+        ogl_pbo_bind(rend->pbo);
 
-	// 1rst attribute buffer : vertices
-	glEnableVertexAttribArray(0);
-	glBindBuffer(GL_ARRAY_BUFFER, squad_vbo);
-	glVertexAttribPointer(
-		0,                  // attribute 0. No particular reason for 0, but must match the layout in the shader.
-		3,                  // size
-		GL_FLOAT,           // type
-		GL_FALSE,           // normalized?
-		0,                  // stride
-		(void*)0            // array buffer offset
-	);
+        ogl_squad_end(rend->squad);
 
-
-        update_pbo(&rend->pbo);
-        render_pbo(&rend->pbo);
-
-	// Draw the triangles !
-	glDrawArrays(GL_TRIANGLES, 0, 6); // 2*3 indices starting at 0 -> 2 triangles
-
-	glDisableVertexAttribArray(0);
-
-        lock_buffer(&gSyncObject);
+        ogl_buffer_lock(&rend->sync);
 
         glfwSwapBuffers(rend->window);
 
@@ -576,16 +282,9 @@ void ogl_render_render_loop(ogl_render* rend)
 void ogl_render_destroy(ogl_render* rend)
 {
     glfwDestroyWindow(rend->window);
-    glDeleteProgram(rend->program);
-    glDeleteVertexArrays(1, &rend->vao);
-    destroy_pbo(&rend->pbo);
+
+    ogl_pbo_destroy(rend->pbo);
+    ogl_squad_destroy(rend->squad);
 
     free(rend);
-}
-
-void ogl_render_set_resize_callback(ogl_render* rend, ogl_render_resize_callback cb)
-{
-    UNUSED_PARAM(rend);
-
-    g_resize_cb = cb;
 }

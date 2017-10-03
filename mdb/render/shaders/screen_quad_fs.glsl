@@ -1,6 +1,6 @@
-#extension GL_ARB_explicit_attrib_location : require
+#extension GL_ARB_explicit_attrib_location  : require
 #extension GL_ARB_explicit_uniform_location : require
-#extension GL_ARB_shading_language_420pack : require
+#extension GL_ARB_shading_language_420pack  : require
 
 in  vec2 texcoord;
 out vec4 colour;
@@ -14,7 +14,7 @@ uniform float exposure;
 #define PI 3.141592653589793
 #define PI2 6.283185307179586
 
-vec3 biLerp3(vec3 a, vec3 b, vec3 c, vec3 d, float s, float t)
+vec3 bilerp3(vec3 a, vec3 b, vec3 c, vec3 d, float s, float t)
 {
   vec3 x = mix(a, b, t);
   vec3 y = mix(c, d, t);
@@ -31,10 +31,10 @@ vec3 get_color(float a)
     if(a == 0.0)
         return vec3(0,0,0);
 
-    float x = 1 * cos(a*PI2);
-    float y = 1 * sin(a*PI2);
+    float x = cos(a*PI2);
+    float y = sin(a*PI2);
 
-    vec3 c = biLerp3(c1, c2, c3, c4, x, y);
+    vec3 c = bilerp3(c1, c2, c3, c4, x, y);
 
     return c;
 }

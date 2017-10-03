@@ -50,7 +50,7 @@
  * This kernel is also written in intrinsics to maximize performance gain of vectorisation CPU extension.
  * Your CPU and compiler must support AVX2 feature.
  */
-/* #undef MDB_ENABLE_AVX2_KERNEL */
+#define MDB_ENABLE_AVX2_KERNEL
 
 /* Enable building a kernel that is written in regular way ( plain C without intrinsics )
  * and let your compiler handle all optimisations by itself.

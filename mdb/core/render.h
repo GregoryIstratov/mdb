@@ -6,4 +6,4 @@
 #include <mdb/sched/rsched.h>
 
 
-int render_run(rsched* sched, mdb_kernel* kernel, surface* surf, uint32_t width, uint32_t height, int enable_colors);
+int render_run(rsched* sched, mdb_kernel* kernel, surface* surf, uint32_t width, uint32_t height, bool color_enabled);

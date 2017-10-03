@@ -1,5 +1,4 @@
 #include "render.h"
-#include <GLFW/glfw3.h>
 
 #include <mdb/sched/rsched.h>
 #include <mdb/kernel/mdb_kernel.h>
@@ -79,7 +78,7 @@ static void render_kernel_proc_fun(uint32_t x0, uint32_t x1, uint32_t y0, uint32
     mdb_kernel_process_block(rend_ctx->kernel, x0, x1, y0, y1);
 }
 
-int render_run(rsched* sched, mdb_kernel* kernel, surface* surf, uint32_t width, uint32_t height, int enable_colors)
+int render_run(rsched* sched, mdb_kernel* kernel, surface* surf, uint32_t width, uint32_t height, bool color_enabled)
 {
     struct render_ctx ctx;
 
@@ -97,12 +96,13 @@ int render_run(rsched* sched, mdb_kernel* kernel, surface* surf, uint32_t width,
 #if defined(OGL_RENDER_ENABLED)
     ogl_render* rend;
 
-    ogl_render_colors_enabled(enable_colors);
+    ogl_render_create(&rend, "Mdb", ctx.width, ctx.height, &ctx);
 
-    ogl_render_create(&rend, ctx.width, ctx.height, &render_update, &ctx, &render_key_callback);
+    ogl_render_init_render_target(rend, &render_update);
+    ogl_render_init_screen(rend, color_enabled);
+
+    ogl_render_set_key_callback(rend, &render_key_callback);
     ogl_render_set_resize_callback(rend, &render_resize);
-
-
 
     ogl_render_render_loop(rend);
 

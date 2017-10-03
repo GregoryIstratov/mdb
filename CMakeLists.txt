@@ -55,7 +55,17 @@ set(SOURCE_FILES
 if(OGL_RENDER_ENABLED)
     list(APPEND SOURCE_FILES
             mdb/render/glad/src/glad.c
-            mdb/render/ogl_render.c)
+            mdb/render/ogl_render.c
+            mdb/render/ogl_render.h
+            mdb/render/bits/ogl_shader.c
+            mdb/render/bits/ogl_shader.h
+            mdb/render/bits/ogl_pixel_buffer.c
+            mdb/render/bits/ogl_pixel_buffer.h
+            mdb/render/bits/ogl_squad.c
+            mdb/render/bits/ogl_squad.h
+            mdb/render/bits/ogl_buffer_sync.c
+            mdb/render/bits/ogl_buffer_sync.h
+            )
 endif()
 
 add_executable(mandelbrot ${SOURCE_FILES})
