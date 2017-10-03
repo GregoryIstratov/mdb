@@ -84,4 +84,4 @@ endif()
 
 
 
-add_subdirectory(kernel_modules ${CMAKE_CURRENT_BINARY_DIR}/modules)
+add_subdirectory(mdb/kernel_modules ${CMAKE_CURRENT_BINARY_DIR}/modules)
