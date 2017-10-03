@@ -8,6 +8,8 @@
 #define __cold	__attribute__((__cold__))
 #define __hot	__attribute__((__hot__))
 
+#define __aligned(x) __attribute__((aligned(x)))
+
 #define return_if(cond, val) if(cond) return (val);
 
 #define __export_sym __attribute__ ((visibility ("default")))

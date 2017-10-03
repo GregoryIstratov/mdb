@@ -53,8 +53,8 @@ static void benchmark_proc_fun(uint32_t x0, uint32_t x1, uint32_t y0, uint32_t y
             break;
     }
 
-    atomic_fetch_add_explicit(&bench->total_block_time, elapsed_time, memory_order_relaxed);
-    atomic_fetch_add_explicit(&bench->block_count, 1, memory_order_relaxed);
+    atomic_fetch_add(&bench->total_block_time, elapsed_time);
+    atomic_fetch_add(&bench->block_count, 1);
 }
 
 void benchmark_create(benchmark** pbench, uint32_t runs, mdb_kernel* kernel, rsched* sched)

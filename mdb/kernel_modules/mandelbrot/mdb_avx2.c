@@ -1,5 +1,4 @@
 #include <immintrin.h>
-#include <stdalign.h>
 
 #include <mandelbrot/bits/mdb_kernel_common.h>
 
@@ -100,7 +99,7 @@ void mdb_kernel_process_block(uint32_t x0, uint32_t x1, uint32_t y0, uint32_t y1
 
             v_i = _mm256_div_ps(v_i, v_bailout);
 
-            alignas(32) float pixels[8];
+            __aligned(32) float pixels[8];
             _mm256_store_ps(pixels, v_i);
 
             surface_set_pixels(mdb.surf, x, y, 8, pixels);

@@ -1,5 +1,7 @@
 #pragma once
 
+#if 0 //!defined(__STDC_NO_ATOMICS__)
+
 #include <stdatomic.h>
 
 #define __atomic _Atomic
@@ -20,3 +22,20 @@
 #define atomic_fetch_add(PTR, VAL) \
         atomic_fetch_add_explicit(PTR, VAL, memory_order_acq_rel);
 
+#else
+
+#define __atomic volatile
+
+#define atomic_store(PTR, VAL) \
+        __atomic_store_n(PTR, VAL, __ATOMIC_RELEASE)
+
+#define atomic_load(PTR) \
+        __atomic_load_n(PTR, __ATOMIC_ACQUIRE)
+
+#define atomic_compare_exchange(PTR, VAL, DES) \
+        __atomic_compare_exchange_n(PTR, VAL, DES, 1, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE)
+
+#define atomic_fetch_add(PTR, VAL) \
+        __atomic_fetch_add(PTR, VAL, __ATOMIC_ACQ_REL);
+
+#endif

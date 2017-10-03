@@ -1,7 +1,6 @@
 #pragma once
 
 #include <kernel_module.h>
-#include <stdalign.h>
 
 #define GLOBAL_VAR_DEFINE(type, name) extern type _gvar_##name
 #define GLOBAL_VAR_INIT(type, name, value) type _gvar_##name = (value)

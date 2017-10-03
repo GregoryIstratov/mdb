@@ -55,7 +55,7 @@
 #include <string.h>
 
 const char* argp_program_version =
-        "mandelbrot 1.0";
+        "mdb 1.0";
 const char* argp_program_bug_address = "";
 
 /* Program documentation. */
@@ -89,15 +89,15 @@ static struct argp_option options[] = {
         {"quad",        'x', "SIZE", 0, "Surface NxN in pixels | default: 1024 ", ARG_GROUP_INHERIT},
         {"bailout",     'i', "N"   , 0, "Bailout / Max iteration depth | default: 256 ", ARG_GROUP_INHERIT},
         {"block-size",  'b', "NxM" , 0, "Computation block size | default: 64x64", ARG_GROUP_INHERIT},
-        {"kernel",      'k', "generic|native|avx2|avx2_fma|avx2_fma_asm|<name>" , 0, "\nThis option determines which kernel should be used for computation that can significantly increase performance, but your CPU should support those features that you want use:\n"
-                               "generic - This Kernel is written in C and compiled to use generic cpu instruction set of your cpu architecture for processing.\n"
-                               "native  - This kernel is written in C and only available if you compile this program from the sources with specifying MDB_ENABLE_NATIVE_KERNEL flag "
+        {"kernel",      'k', "mdb_generic|mdb_native|mdb_avx2|mdb_avx2_fma|mdb_avx2_fma_asm|<name>" , 0, "\nThis option determines which kernel should be used for computation that can significantly increase performance, but your CPU should support those features that you want use:\n"
+                               "mdb_generic - This Kernel is written in C and compiled to use generic cpu instruction set of your cpu architecture for processing.\n"
+                               "mdb_native  - This kernel is written in C and only available if you compile this program from the sources with specifying MDB_ENABLE_NATIVE_KERNEL flag "
                                "this allows compiler to determine your cpu and use suitable instruction set like SSE,AVX,FMA, but performance of this kernel depends only on how smart is your compiler and this may benefit not significantly compared to the generic kernel.\n"
-                               "avx2 - This Kernel is written in assembler intrinsics using AVX2 instruction set to vectorize computation.\n"
-                               "avx2_fma - This Kernel is written in assembler intrinsics using AVX2 and FMA3 instruction set to vectorize computation.\n"
-                               "avx2_fma_asm - This Kernel is written in pure assembler with NASM using AVX2 and FMA3 instructions to vectorize computation.\n"
+                               "mdb_avx2 - This Kernel is written in assembler intrinsics using AVX2 instruction set to vectorize computation.\n"
+                               "mdb_avx2_fma - This Kernel is written in assembler intrinsics using AVX2 and FMA3 instruction set to vectorize computation.\n"
+                               "mdb_avx2_fma_asm - This Kernel is written in pure assembler with NASM using AVX2 and FMA3 instructions to vectorize computation.\n"
                                "<name> - You can dynamically load custom kernels, specify name ( w/o extension) of a kernel in 'kernels' directory. Example: './mandelbrot -k avx2_fma' which included as an example into the project\n"
-                               "default: generic",
+                               "default: mdb_generic",
                 ARG_GROUP_INHERIT},
         {"threads",     't', "n|auto"   , 0, "Processing threads number, auto - determines count of hardware threads | default: auto", ARG_GROUP_INHERIT},
         {"mode",       ARG_KEY_MODE, "oneshot|benchmark|render"   , 0, "Run mode:\n"
@@ -338,7 +338,7 @@ void args_parse(int argc, char** argv, struct arguments* arguments)
     arguments->bailout       = 256;
     arguments->block_size.x  = 64;
     arguments->block_size.y  = 64;
-    arguments->kernel_name   = "generic";
+    arguments->kernel_name   = "mdb_generic";
     arguments->threads       = -1;
     arguments->mode          = MODE_ONESHOT;
     arguments->output_file   = "mandelbrot.hdr";
