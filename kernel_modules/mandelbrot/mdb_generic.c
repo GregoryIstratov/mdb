@@ -1,5 +1,5 @@
-#include "bits/mdb_kernel_common.h"
-#include "bits/block_fun_common.h"
+#include <mandelbrot/bits/mdb_kernel_common.h>
+#include <mandelbrot/bits/block_fun_common.h>
 
 
 GLOBAL_VAR_INIT(const char*, name, "Mandelbrot generic kernel");

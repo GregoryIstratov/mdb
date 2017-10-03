@@ -9,7 +9,7 @@ include(mdb/config/config.cmake)
 
 configure_file(mdb/config/config.h.in ${CMAKE_CURRENT_SOURCE_DIR}/mdb/config/config.h @ONLY)
 
-set(CMAKE_VERBOSE_MAKEFILE off)
+set(CMAKE_VERBOSE_MAKEFILE Off)
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu11 -D_GNU_SOURCE -fPIC -rdynamic -fvisibility=hidden -march=native -Wall -Wextra -Wno-unused-function")
 set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DDEBUG -ggdb3 -O0")
@@ -84,4 +84,4 @@ endif()
 
 
 
-add_subdirectory(mdb/kernel/modules ${CMAKE_CURRENT_BINARY_DIR}/modules)
+add_subdirectory(kernel_modules ${CMAKE_CURRENT_BINARY_DIR}/modules)

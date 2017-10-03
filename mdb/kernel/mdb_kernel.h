@@ -13,7 +13,7 @@
  * For performance reasons kernel process functions should not contain any blocking code, dynamic memory allocations
  * and IO operations.
  *
- * Examples of kernels can be found in modules/kernels
+ * Examples of kernels can be found in kernel_modules/kernels
  */
 
 #include <stdint.h>

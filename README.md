@@ -6,7 +6,7 @@ Now it's a complete modular framework to render fractals and anything on CPU.
 It supports the next features:
 - Modular and configurable system.
 - Convient API for writing fractal generators ( Kernels ) as dynamically loadable modules.
-- Multithreaded task scheduler that automatically splits and dispatchs quants of kernel work across CPU and cores.
+- Multithreaded task scheduler that automatically splits and dispatches quants of kernel work across CPU and cores.
 - Tools for benchmarking kernels performance.
 - Real-time CPU rendering to screen using OpenGL to show
 - Supports input events like keyboard and mouse in the kernels that allows creating controls in the render mode.

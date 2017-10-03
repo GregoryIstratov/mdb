@@ -1,7 +1,7 @@
 #include <immintrin.h>
 #include <stdalign.h>
 
-#include "bits/mdb_kernel_common.h"
+#include <mandelbrot/bits/mdb_kernel_common.h>
 
 
 #if !defined(__AVX__)

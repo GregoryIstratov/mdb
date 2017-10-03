@@ -1,8 +1,7 @@
 #include <immintrin.h>
 #include <stdalign.h>
 
-#include "bits/mdb_kernel_common.h"
-
+#include <mandelbrot/bits/mdb_kernel_common.h>
 
 #if !defined(__AVX__)
 #error "AVX is not enabled. Consider set gcc flags -mavx2"
