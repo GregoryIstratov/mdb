@@ -159,7 +159,7 @@ void ogl_render_create(ogl_render** _rend, const char* win_title, uint32_t width
         exit(EXIT_FAILURE);
     }
 
-#if GLFW_VERSION_MAJOR <= 3 && GLFW_VERSION_MINOR <= 2
+#if GLFW_VERSION_MAJOR >= 3 && GLFW_VERSION_MINOR >= 2
     glfwSetWindowSizeLimits(rend->window, 640, 480, GLFW_DONT_CARE, GLFW_DONT_CARE);
 #endif
 
