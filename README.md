@@ -19,7 +19,7 @@ It supports the next features:
 Requirements:
 - GCC and libc with C11 atomics support.
 - CPU with AVX2 and FMA support to run specific kernels.
-- GLWF and OpenGL >= 3.2 with GL_ARB_buffer_storage, GL_ARB_explicit_attrib_location, GL_ARB_explicit_uniform_location, GL_ARB_shading_language_420pack support.
+- GLWF3 and OpenGL >= 3.2 with GL_ARB_buffer_storage, GL_ARB_explicit_attrib_location, GL_ARB_explicit_uniform_location, GL_ARB_shading_language_420pack support.
 - Only tested and targeted OS is Linux ( but may work on Windows with MinGW )
 
 Build instructions:
@@ -33,3 +33,12 @@ Build instructions:
 Now you can run the application with some pre-existing kernel, type --help or run with the following options
 ./mdb -k mdb_avx2_fma --mode=render
 
+Development platform:
+OS: Arch Linux, Kernel 4.12.13 Ck-Patch, GCC 7.2, Glibc 2.26 
+CPU: Intel(R) Core(TM) i5-4670K
+GPU: Nvidia GTX 580, Proprietary driver / Integrated Intel CPU graphics.
+
+Tested platforms:
+Arch Linux Kernel 4.13 GCC 7.2 on Intel Celeron B820 1.7 GHz, Integrated graphics.
+Ubuntu 14.04 LTS, GCC 4.8.4 on QEMU-KVM on dev platform
+Ubuntu 16.04 LTS, GCC 5.4.0 on QEMU-KVM on dev platform

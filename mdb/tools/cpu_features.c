@@ -51,7 +51,7 @@ int cpu_check_features(int mask)
 
     return_if(!mask, mask);
 
-    /* GCC 4.9.xx does not recognize 'fma' flag so
+    /* GCC 4.8.xx does not recognize 'fma' flag so
      * assume fma3 is available if avx2 is   */
     __cpu_probe_feature(mask, CPU_FEATURE_FMA, "avx2");
 
