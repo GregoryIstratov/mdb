@@ -31,6 +31,14 @@ typedef void (*mdb_kernel_set_surface_t)(surface* surf);
 
 typedef void (*mdb_kernel_submit_changes_t)(void);
 
+enum
+{
+    /* Kernel states */
+    MDB_KRN_NOINIT  = 0,
+    MDB_KRN_LOADED  = 1,
+    MDB_KRN_INITED  = 2
+};
+
 struct _mdb_kernel
 {
     /* Kernel API */
@@ -47,4 +55,6 @@ struct _mdb_kernel
 
     /* Dynamic kernel handle */
     void* dl_handle;
+
+    int state;
 };

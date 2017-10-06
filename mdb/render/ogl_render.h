@@ -14,6 +14,7 @@
  * It's been successfully testes on:
  * Nvidia GTX+ 580 on linux with nvidia proprietary drivers
  * Intel Core i5 4670K with integrated graphics on linux (4.12 kernel) and Mesa 17.2.1
+ * Intel Celeron B820 1.7 GHz with integrated graphics on linux 4.13, Mesa 17.2.1
  */
 
 #include <stdint.h>
