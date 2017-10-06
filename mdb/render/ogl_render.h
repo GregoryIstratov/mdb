@@ -6,11 +6,10 @@
  * applying shader coloring if enabled.
  *
  * This engine requires the next OpenGL features:
- * OpenGL minimum 3.2
+ * OpenGL version >= 3.2
  * GL_ARB_buffer_storage
- * GL_ARB_explicit_attrib_location
- * GL_ARB_explicit_uniform_location
- * GL_ARB_shading_language_420pack
+ *
+ * KHR_debug and GL_ARB_debug_output - if enabled in config
  *
  * It's been successfully testes on:
  * Nvidia GTX+ 580 on linux with nvidia proprietary drivers

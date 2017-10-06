@@ -183,7 +183,7 @@ void ogl_render_create(ogl_render** _rend, const char* win_title, uint32_t width
     LOG_INFO("OpenGL %s, GLSL %s", glGetString(GL_VERSION), glGetString(GL_SHADING_LANGUAGE_VERSION));
 
 
-#if !defined(NDEBUG)
+#if !defined(NDEBUG) && defined(OGL_DEBUG_OUTPUT)
     if (glfwExtensionSupported("GL_ARB_debug_output"))
     {
         // Enable the debug callback
@@ -261,7 +261,7 @@ void ogl_render_render_loop(ogl_render* rend)
 
         ogl_squad_set_exposure(rend->squad, rend->exposure);
 
-        ogl_pbo_bind(rend->pbo);
+        ogl_pbo_bind_texture0(rend->pbo);
 
         ogl_squad_end(rend->squad);
 

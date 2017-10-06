@@ -86,3 +86,9 @@
  * It potentyaly gives better performance on CPU kernels.
  */
 #define OGL_RENDER_ENABLED
+
+
+/* Enable OpenGL debug output if build type is Debug
+ * Requires GL_ARB_debug_output
+ */
+#define OGL_DEBUG_OUTPUT

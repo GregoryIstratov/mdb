@@ -87,3 +87,9 @@ set(MDB_ENABLE_AVX_FMA_ASM_KERNEL Off)
 # It potentyaly gives better performance on CPU kernels.
 #
 set(OGL_RENDER_ENABLED On)
+
+
+# Enable OpenGL debug output if build type is Debug
+# Requires GL_ARB_debug_output
+#
+set(OGL_DEBUG_OUTPUT On)

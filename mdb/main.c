@@ -12,6 +12,7 @@
 
 #include <mdb/tools/image/image_hdr.h>
 #include <locale.h>
+#include <mdb/tools/cpu_features.h>
 
 inline static const char* mode_str(int mode)
 {
@@ -32,6 +33,9 @@ inline static const char* mode_str(int mode)
 int main(int argc, char** argv)
 {
     bool exit_failure = false;
+
+    //cpu_get_features();
+    //return 0;
 
     setlocale(LC_ALL, "");
 

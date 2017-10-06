@@ -16,7 +16,6 @@ enum
     CPU_FEATURE_FMA     = 1<<9
 };
 
-
 /* Check for platform available cpu features
  * if everything is supported return 0
  * otherwise returns bitwise mask of unsupported features.

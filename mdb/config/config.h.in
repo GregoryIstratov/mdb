@@ -85,3 +85,9 @@
  * It potentyaly gives better performance on CPU kernels.
  */
 #cmakedefine OGL_RENDER_ENABLED
+
+
+/* Enable OpenGL debug output if build type is Debug
+ * Requires GL_ARB_debug_output
+ */
+#cmakedefine OGL_DEBUG_OUTPUT

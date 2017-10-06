@@ -4,6 +4,7 @@
 #include <stdlib.h>
 
 #include <mdb/tools/log.h>
+#include <mdb/tools/compiler.h>
 
 
 struct _ogl_pixel_buffer
@@ -54,7 +55,7 @@ void ogl_pbo_update(ogl_pixel_buffer* pbo, GLsync* sync)
 
 }
 
-void ogl_pbo_bind(ogl_pixel_buffer* pbo)
+void ogl_pbo_bind_texture0(ogl_pixel_buffer* pbo)
 {
     glActiveTexture(GL_TEXTURE0);
 

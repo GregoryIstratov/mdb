@@ -10,7 +10,7 @@ void ogl_pbo_create(ogl_pixel_buffer** ppbo, uint32_t width, uint32_t height, og
 
 void ogl_pbo_update(ogl_pixel_buffer* pbo, GLsync* sync);
 
-void ogl_pbo_bind(ogl_pixel_buffer* pbo);
+void ogl_pbo_bind_texture0(ogl_pixel_buffer* pbo);
 
 void ogl_pbo_destroy(ogl_pixel_buffer* pbo);
 

@@ -2,6 +2,8 @@
 #include <string.h>
 #include <mdb/tools/compiler.h>
 
+
+
 #define __cpu_probe_feature(mask, feature, name) \
 if((mask) & (feature)) \
 { \
@@ -49,7 +51,9 @@ int cpu_check_features(int mask)
 
     return_if(!mask, mask);
 
-    __cpu_probe_feature(mask, CPU_FEATURE_FMA, "fma");
+    /* GCC 4.9.xx does not recognize 'fma' flag so
+     * assume fma3 is available if avx2 is   */
+    __cpu_probe_feature(mask, CPU_FEATURE_FMA, "avx2");
 
     return mask;
 

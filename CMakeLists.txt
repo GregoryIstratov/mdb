@@ -13,12 +13,12 @@ set(CMAKE_VERBOSE_MAKEFILE Off)
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu99 -D_GNU_SOURCE -fPIC -rdynamic -fvisibility=hidden -march=native -Wall -Wextra -Wno-unused-function")
 set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DDEBUG -ggdb3 -O0")
-set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -fsanitize=leak")
-set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -fsanitize=undefined")
-set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -fsanitize=address")
+#set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -fsanitize=leak")
+#set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -fsanitize=undefined")
+#set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -fsanitize=address")
 set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O3 -DNDEBUG -s -flto -ffast-math -funroll-loops -ftree-vectorize")
 
-include_directories(mdb/render/glad/include/)
+
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
 set(SOURCE_FILES
@@ -49,12 +49,24 @@ set(SOURCE_FILES
         mdb/surface/surface.h
         mdb/kernel/bits/mdb_kernel_error.h
         mdb/kernel/bits/mdb_kernel_event.h
+
+        #mdb/tools/cpu_feature_cpuid.c
+        #mdb/tools/cpu_feature_cpuid.h
+
         )
 
 
 if(OGL_RENDER_ENABLED)
+
+    if ("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
+        include_directories(mdb/render/glad_debug/include/)
+        list(APPEND SOURCE_FILES mdb/render/glad_debug/src/glad.c)
+    elseif(${CMAKE_BUILD_TYPE} STREQUAL Release)
+        include_directories(mdb/render/glad_release/include/)
+        list(APPEND SOURCE_FILES mdb/render/glad_release/src/glad.c)
+    endif ()
+
     list(APPEND SOURCE_FILES
-            mdb/render/glad/src/glad.c
             mdb/render/ogl_render.c
             mdb/render/ogl_render.h
             mdb/render/bits/ogl_shader.c
@@ -77,9 +89,9 @@ if(OGL_RENDER_ENABLED)
     file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/shaders)
     add_custom_command(
             TARGET mdb POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy
-            ${CMAKE_SOURCE_DIR}/mdb/render/shaders/*
-            ${CMAKE_CURRENT_BINARY_DIR}/shaders/)
+            COMMAND ${CMAKE_COMMAND} -E copy_directory
+            ${CMAKE_SOURCE_DIR}/mdb/render/shaders
+            ${CMAKE_CURRENT_BINARY_DIR}/shaders)
 endif()
 
 

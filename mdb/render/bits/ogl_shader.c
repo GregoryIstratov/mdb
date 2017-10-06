@@ -75,7 +75,7 @@ void ogl_shader_log(const char* text, GLuint object)
 
 GLuint ogl_shader_create(const char* filename, const char* defines, GLenum type)
 {
-    static const char* version_define = "#version 130 \n";
+    static const char* version_define = "#version 150 \n";
 
     char *source = file_read_shader_source(filename);
 
