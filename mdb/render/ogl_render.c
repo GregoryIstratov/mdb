@@ -75,7 +75,7 @@ static void key_callback(GLFWwindow* window, int key, int scancode, int action, 
 {
     if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
     {
-        glfwSetWindowShouldClose(window, GLFW_TRUE);
+        glfwSetWindowShouldClose(window, GL_TRUE);
         return;
     }
 
@@ -159,7 +159,9 @@ void ogl_render_create(ogl_render** _rend, const char* win_title, uint32_t width
         exit(EXIT_FAILURE);
     }
 
+#if GLFW_VERSION_MAJOR <= 3 && GLFW_VERSION_MINOR <= 2
     glfwSetWindowSizeLimits(rend->window, 640, 480, GLFW_DONT_CARE, GLFW_DONT_CARE);
+#endif
 
     glfwSetKeyCallback(rend->window, &key_callback);
 
