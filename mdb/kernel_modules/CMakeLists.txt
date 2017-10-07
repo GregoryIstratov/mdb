@@ -6,7 +6,7 @@ include_directories(.)
 message("Modules root dir: ${CMAKE_CURRENT_SOURCE_DIR}")
 message("Modules binary dir: ${CMAKE_CURRENT_BINARY_DIR}")
 
-if(MDB_ENABLE_AVX_FMA_ASM_KERNEL)
+if(CONFIG_MDB_AVX_FMA_ASM_KERNEL)
     if ("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
         message("Detected build type - ${CMAKE_BUILD_TYPE}")
 
@@ -61,7 +61,7 @@ function(add_kernel kname kfiles)
 endfunction()
 
 
-if(${MDB_ENABLE_AVX2_FMA_KERNEL})
+if(${CONFIG_MDB_AVX2_FMA_KERNEL})
 
     add_kernel(mdb_avx2_fma
             mandelbrot/mdb_avx2_fma.c
@@ -72,7 +72,7 @@ if(${MDB_ENABLE_AVX2_FMA_KERNEL})
 
 endif()
 
-if(${MDB_ENABLE_AVX2_KERNEL})
+if(${CONFIG_MDB_AVX2_KERNEL})
 
     add_kernel(mdb_avx2
             mandelbrot/mdb_avx2.c
@@ -82,7 +82,7 @@ if(${MDB_ENABLE_AVX2_KERNEL})
     target_compile_options(mdb_avx2 PRIVATE -mavx2)
 endif()
 
-if(${MDB_ENABLE_NATIVE_KERNEL})
+if(${CONFIG_MDB_NATIVE_KERNEL})
 
     add_kernel(mdb_native
             mandelbrot/mdb_native.c

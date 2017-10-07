@@ -29,8 +29,6 @@ enum {
 #define LOG_INFO(fmt, ...) (_log(__FILE__, __LINE__, __func__, LOG_INFO, (fmt), ##__VA_ARGS__))
 #define LOG_TRACE(fmt, ...) (_log(__FILE__, __LINE__, __func__, LOG_TRACE, (fmt), ##__VA_ARGS__))
 #define LOG_ASSERT(fmt, ...) (_log(__FILE__, __LINE__, __func__, LOG_ASSERT, (fmt), ##__VA_ARGS__))
-#define ASSERT(exp) ((exp)?((void)0): _log(__FILE__, __LINE__, __func__, LOG_ASSERT, #exp))
-#define ASSERT_EQ(a, b) ((a == b)?((void)0): LOG_ASSERT("%s != %s [%lu] != [%lu]", #a, #b, a, b))
 #else
 #define LOG_ERROR(fmt, ...) (_log(__FILE__, __LINE__, __func__, LOG_ERROR, (fmt),  ##__VA_ARGS__))
 #define LOG_WARN(fmt, ...) (_log(__FILE__, __LINE__, __func__, LOG_WARN, (fmt) ,##__VA_ARGS__))
@@ -38,8 +36,6 @@ enum {
 #define LOG_INFO(fmt, ...) (_log(__FILE__, __LINE__, __func__, LOG_INFO, (fmt), ##__VA_ARGS__))
 #define LOG_TRACE(fmt, ...) ((void)0)
 #define LOG_ASSERT(fmt, ...) ((void)0)
-#define ASSERT(exp) ((void)0)
-#define ASSERT_EQ(a, b) ((void)0)
 #endif
 
 #define LOG_SAY(fmt, ...) _log_say((fmt), ##__VA_ARGS__)

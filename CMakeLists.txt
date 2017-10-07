@@ -56,7 +56,7 @@ set(SOURCE_FILES
         )
 
 
-if(OGL_RENDER_ENABLED)
+if(CONFIG_OGL_RENDER)
 
     if ("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
         include_directories(mdb/render/glad_debug/include/)
@@ -83,7 +83,7 @@ endif()
 add_executable(mdb ${SOURCE_FILES})
 target_link_libraries(mdb pthread dl)
 
-if(OGL_RENDER_ENABLED)
+if(CONFIG_OGL_RENDER)
     target_link_libraries(mdb glfw)
 
     file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/shaders)

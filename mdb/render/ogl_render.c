@@ -185,7 +185,7 @@ void ogl_render_create(ogl_render** _rend, const char* win_title, uint32_t width
     LOG_INFO("OpenGL %s, GLSL %s", glGetString(GL_VERSION), glGetString(GL_SHADING_LANGUAGE_VERSION));
 
 
-#if !defined(NDEBUG) && defined(OGL_DEBUG_OUTPUT)
+#if !defined(NDEBUG) && defined(CONFIG_OGL_DEBUG_OUTPUT)
     if (glfwExtensionSupported("GL_ARB_debug_output"))
     {
         // Enable the debug callback

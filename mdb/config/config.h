@@ -13,21 +13,21 @@
  * -------------------------------------------------*/
 
 /* Show time of a log record */
-#define LOG_SHOW_TIME 1
+#define CONFIG_LOG_TIME 1
 
 /* Show date of a log record */
-#define LOG_SHOW_DATE 1
+#define CONFIG_LOG_DATE 1
 
 /* Show thread ID where logging record is coming from */
-#define LOG_SHOW_THREAD 1
+#define CONFIG_LOG_THREAD 1
 
 /* Show a full source file path and a line number
  * where is a log record coming from
  * Useful when debugging */
-/* #undef LOG_SHOW_PATH */
+/* #undef CONFIG_LOG_PATH */
 
 /* If enabled protect logging functions with a mutex */
-#define LOG_ENABLE_MULTITHREADING 1
+#define CONFIG_LOG_MULTITHREADING 1
 
 /* ---------------------------------------------------
  * Kernel parameters
@@ -37,20 +37,20 @@
  * This may lead to a huge performance impact and a massive verbose output.
  * Don't enable it unless you know what you're doing.
  */
-/* #undef MDB_KERNEL_DEBUG */
+/* #undef CONFIG_MDB_KERNEL_DEBUG */
 
 /* Enable building a kernel that using avx2 and fma instruction sets.
  * Written in intrinsics to maximize performance gain of vectorisation CPU extension.
  * Your CPU and compiler must support AVX2 and FMA features.
  */
-#define MDB_ENABLE_AVX2_FMA_KERNEL 1
+#define CONFIG_MDB_AVX2_FMA_KERNEL 1
 
 /* Enable building a kernel that using avx2 instruction set ( without using FMA )
  * thus this may be slightly slower than that one above which using FMA.
  * This kernel is also written in intrinsics to maximize performance gain of vectorisation CPU extension.
  * Your CPU and compiler must support AVX2 feature.
  */
-#define MDB_ENABLE_AVX2_KERNEL 1
+#define CONFIG_MDB_AVX2_KERNEL 1
 
 /* Enable building a kernel that is written in regular way ( plain C without intrinsics )
  * and let your compiler handle all optimisations by itself.
@@ -64,15 +64,14 @@
  * But both kernels shares other compiler flags like -O3 -ffast-math, etc, so 'native' kernel
  * shows only how compiler uses vectorisation for optimisations.
  */
-#define MDB_ENABLE_NATIVE_KERNEL 1
+#define CONFIG_MDB_NATIVE_KERNEL 1
 
 /* Enable building a kernel that is written in x86 assembly using NASM
  * This kernel requires NASM compiller available in /usr/bin/nasm
  * and CPU with AVX2,FMA support.
  * It also requares external kernel support.
  */
-/* #undef MDB_ENABLE_AVX_FMA_ASM_KERNEL */
-
+/* #undef CONFIG_MDB_AVX_FMA_ASM_KERNEL */
 
 /* ---------------------------------------------------
  * Render parameters
@@ -85,10 +84,9 @@
  * CPU to GPU.
  * It potentyaly gives better performance on CPU kernels.
  */
-#define OGL_RENDER_ENABLED 1
-
+#define CONFIG_OGL_RENDER 1
 
 /* Enable OpenGL debug output if build type is Debug
  * Requires GL_ARB_debug_output
  */
-#define OGL_DEBUG_OUTPUT 1
+#define CONFIG_OGL_DEBUG_OUTPUT 1

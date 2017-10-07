@@ -1,17 +1,21 @@
 #include "render.h"
 
+#include <mdb/config/config.h>
+
+#if defined(CONFIG_OGL_RENDER)
+#include <mdb/render/ogl_render.h>
+#endif
+
 #include <mdb/sched/rsched.h>
 #include <mdb/kernel/mdb_kernel.h>
 #include <mdb/tools/compiler.h>
 #include <string.h>
 #include <mdb/tools/log.h>
-
-#if defined(OGL_RENDER_ENABLED)
-#include <mdb/render/ogl_render.h>
 #include <mdb/kernel/bits/mdb_kernel_event.h>
 #include <mdb/tools/error_codes.h>
 
-#endif
+
+
 
 static const char* render_control_keys =
         "Arrows  - Move Up/Down/Left/Right\n"
@@ -79,6 +83,7 @@ static void render_kernel_proc_fun(uint32_t x0, uint32_t x1, uint32_t y0, uint32
     mdb_kernel_process_block(rend_ctx->kernel, x0, x1, y0, y1);
 }
 
+#if defined(CONFIG_OGL_RENDER)
 static void run_ogl_render(struct render_ctx* ctx, bool color_enabled)
 {
     ogl_render* rend;
@@ -95,6 +100,7 @@ static void run_ogl_render(struct render_ctx* ctx, bool color_enabled)
 
     ogl_render_destroy(rend);
 }
+#endif
 
 int render_run(rsched* sched, mdb_kernel* kernel, surface* surf, uint32_t width, uint32_t height, bool color_enabled)
 {
@@ -111,14 +117,17 @@ int render_run(rsched* sched, mdb_kernel* kernel, surface* surf, uint32_t width,
 
     LOG_SAY("Starting render mode...\nControl keys:\n%s\n", render_control_keys);
 
-#if defined(OGL_RENDER_ENABLED)
+#if defined(CONFIG_OGL_RENDER)
     run_ogl_render(&ctx, color_enabled);
+
+    return MDB_SUCCESS;
 #else
     UNUSED_PARAM(render_control_keys);
+    UNUSED_PARAM(color_enabled);
+
     LOG_ERROR("OGL Render disabled at the build time.");
     return MDB_FAIL;
 #endif
 
-    return MDB_SUCCESS;
 }
 

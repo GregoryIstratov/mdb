@@ -20,18 +20,16 @@
 #define LOG_WHT   "\x1B[37m"
 #define LOG_RESET "\x1B[0m"
 
-#ifdef LOG_ENABLE_MULTITHREADING
-static pthread_mutex_t log_mtx;
-#endif
-
 static int loglevel = LOGLEVEL_DEBUG;
 static FILE* log_sink = NULL;
+static pthread_mutex_t log_mtx;
 
 void log_init(int loglvl, const char* filename) {
     loglevel = loglvl;
-#ifdef LOG_ENABLE_MULTITHREADING
-    pthread_mutex_init(&log_mtx, NULL);
-#endif
+
+    if(IS_ENABLED(CONFIG_LOG_MULTITHREADING))
+        pthread_mutex_init(&log_mtx, NULL);
+
     if(filename)
     {
         log_sink = fopen(filename, "a");
@@ -53,9 +51,8 @@ void log_shutdown() {
     if (log_sink != stdout)
         fclose(log_sink);
 
-#ifdef LOG_ENABLE_MULTITHREADING
-    pthread_mutex_destroy(&log_mtx);
-#endif
+    if(IS_ENABLED(CONFIG_LOG_MULTITHREADING))
+        pthread_mutex_destroy(&log_mtx);
 }
 
 static const char* loglevel_s(int lvl) {
@@ -111,12 +108,11 @@ static inline void _log_append_datetime(FILE* sink)
     localtime_r(&t, &_tml);
     tml = &_tml;
 
-#ifdef LOG_SHOW_TIME
-    fprintf(sink, "[%02d:%02d:%02d]", tml->tm_hour, tml->tm_min, tml->tm_sec);
-#endif
-#ifdef LOG_SHOW_DATE
-    fprintf(sink, "[%02d/%02d/%d]", tml->tm_mday, tml->tm_mon + 1, tml->tm_year - 100);
-#endif
+    if(IS_ENABLED(CONFIG_LOG_TIME))
+        fprintf(sink, "[%02d:%02d:%02d]", tml->tm_hour, tml->tm_min, tml->tm_sec);
+
+    if(IS_ENABLED(CONFIG_LOG_DATE))
+        fprintf(sink, "[%02d/%02d/%d]", tml->tm_mday, tml->tm_mon + 1, tml->tm_year - 100);
 
 }
 
@@ -131,21 +127,19 @@ void _log(const char* file, int line, const char* fun, int lvl, const char* fmt,
 
     if (lvl <= loglevel) {
 
-#ifdef LOG_ENABLE_MULTITHREADING
-        pthread_mutex_lock(&log_mtx);
-#endif
+        if(IS_ENABLED(CONFIG_LOG_MULTITHREADING))
+            pthread_mutex_lock(&log_mtx);
+
 
 
         /* Set terminal color */
         fprintf(log_sink, "%s", log_color(lvl));
 
-#if defined(LOG_SHOW_TIME) || defined(LOG_SHOW_DATE)
-        _log_append_datetime(log_sink);
-#endif
+        if(IS_ENABLED(CONFIG_LOG_TIME) || IS_ENABLED(CONFIG_LOG_DATE))
+            _log_append_datetime(log_sink);
 
-#ifdef LOG_SHOW_THREAD
-        _log_append_tid(log_sink);
-#endif
+        if(IS_ENABLED(CONFIG_LOG_THREAD))
+            _log_append_tid(log_sink);
 
         fprintf(log_sink, "[%s][%s]: ", loglevel_s(lvl), fun);
 
@@ -156,19 +150,14 @@ void _log(const char* file, int line, const char* fun, int lvl, const char* fmt,
         /* restore default terminal color */
         fprintf(log_sink, "%s", LOG_RESET);
 
-#ifdef LOG_SHOW_PATH
-        fprintf(log_sink, " - %s:%i", file, line);
-#else
-        UNUSED_PARAM(file);
-        UNUSED_PARAM(line);
-#endif
+        if(IS_ENABLED(CONFIG_LOG_PATH))
+            fprintf(log_sink, " - %s:%i", file, line);
+
         fprintf(log_sink, "\n");
         fflush(log_sink);
 
-#ifdef LOG_ENABLE_MULTITHREADING
-        pthread_mutex_unlock(&log_mtx);
-#endif
-
+        if(IS_ENABLED(CONFIG_LOG_MULTITHREADING))
+            pthread_mutex_unlock(&log_mtx);
     }
 }
 
@@ -176,9 +165,8 @@ void _log_say(const char* fmt, ...)
 {
     va_list args;
 
-#ifdef LOG_ENABLE_MULTITHREADING
-    pthread_mutex_lock(&log_mtx);
-#endif
+    if(IS_ENABLED(CONFIG_LOG_MULTITHREADING))
+        pthread_mutex_lock(&log_mtx);
 
     va_start(args, fmt);
     vfprintf(log_sink, fmt, args);
@@ -187,9 +175,8 @@ void _log_say(const char* fmt, ...)
     fprintf(log_sink, "\n");
     fflush(log_sink);
 
-#ifdef LOG_ENABLE_MULTITHREADING
-    pthread_mutex_unlock(&log_mtx);
-#endif
+    if(IS_ENABLED(CONFIG_LOG_MULTITHREADING))
+        pthread_mutex_unlock(&log_mtx);
 }
 
 
@@ -197,9 +184,9 @@ void _log_param(const char* label, const char* fmt, ...)
 {
     va_list args;
 
-#ifdef LOG_ENABLE_MULTITHREADING
-    pthread_mutex_lock(&log_mtx);
-#endif
+    if(IS_ENABLED(CONFIG_LOG_MULTITHREADING))
+        pthread_mutex_lock(&log_mtx);
+
 
     fprintf(log_sink, "%-20s: ", label);
 
@@ -210,7 +197,6 @@ void _log_param(const char* label, const char* fmt, ...)
     fprintf(log_sink, "\n");
     fflush(log_sink);
 
-#ifdef LOG_ENABLE_MULTITHREADING
-    pthread_mutex_unlock(&log_mtx);
-#endif
+    if(IS_ENABLED(CONFIG_LOG_MULTITHREADING))
+        pthread_mutex_unlock(&log_mtx);
 }

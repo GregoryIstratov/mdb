@@ -12,22 +12,22 @@
 #======================================================
 
 # Show time of a log record
-set(LOG_SHOW_TIME On)
+set(CONFIG_LOG_TIME On)
 
 # Show date of a log record
-set(LOG_SHOW_DATE On)
+set(CONFIG_LOG_DATE On)
 
 # Show thread ID where logging record is coming from"
-set(LOG_SHOW_THREAD On)
+set(CONFIG_LOG_THREAD On)
 
 # Show a full source file path and a line number
 # where is a log record coming from
 # Useful when debugging
 #
-set(LOG_SHOW_PATH Off)
+set(CONFIG_LOG_PATH Off)
 
 # If enabled protect logging functions with a mutex
-set(LOG_ENABLE_MULTITHREADING On)
+set(CONFIG_LOG_MULTITHREADING On)
 
 #======================================================
 # Kernel parameters                                   #
@@ -38,20 +38,20 @@ set(LOG_ENABLE_MULTITHREADING On)
 # Don't enable it unless you know what you're doing.
 # This option has effect only in debug build
 #
-set(MDB_KERNEL_DEBUG Off)
+set(CONFIG_MDB_KERNEL_DEBUG Off)
 
 # Enable building a kernel that using avx2 and fma instruction sets.
 # Written in intrinsics to maximize performance gain of vectorisation CPU extension.
 # Your CPU and compiler must support AVX2 and FMA features.
 #
-set(MDB_ENABLE_AVX2_FMA_KERNEL On)
+set(CONFIG_MDB_AVX2_FMA_KERNEL On)
 
 # Enable building a kernel that using avx2 instruction set ( without using FMA )
 # thus this may be slightly slower than that one above which using FMA.
 # This kernel is also written in intrinsics to maximize performance gain of vectorisation CPU extension.
 # Your CPU and compiler must support AVX2 feature.
 #
-set(MDB_ENABLE_AVX2_KERNEL On)
+set(CONFIG_MDB_AVX2_KERNEL On)
 
 
 # Enable building a kernel that is written in regular way ( plain C without intrinsics )
@@ -66,14 +66,14 @@ set(MDB_ENABLE_AVX2_KERNEL On)
 # But both kernels shares other compiler flags like -O3 -ffast-math, etc, so 'native' kernel
 # shows only how compiler uses vectorisation for optimisations.
 #
-set(MDB_ENABLE_NATIVE_KERNEL On)
+set(CONFIG_MDB_NATIVE_KERNEL On)
 
 
 # Enable building a kernel that is written in x86 assembly using NASM
 # This kernel requires NASM compiller available in /usr/bin/nasm
 # and CPU with AVX2,FMA support.
 #
-set(MDB_ENABLE_AVX_FMA_ASM_KERNEL Off)
+set(CONFIG_MDB_AVX_FMA_ASM_KERNEL Off)
 
 #======================================================
 # Render parameters                                   #
@@ -86,10 +86,10 @@ set(MDB_ENABLE_AVX_FMA_ASM_KERNEL Off)
 # CPU to GPU.
 # It potentyaly gives better performance on CPU kernels.
 #
-set(OGL_RENDER_ENABLED On)
+set(CONFIG_OGL_RENDER On)
 
 
 # Enable OpenGL debug output if build type is Debug
 # Requires GL_ARB_debug_output
 #
-set(OGL_DEBUG_OUTPUT On)
+set(CONFIG_OGL_DEBUG_OUTPUT On)
