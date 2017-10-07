@@ -34,18 +34,37 @@ void mdb_kernel_process_block(uint32_t x0, uint32_t x1, uint32_t y0, uint32_t y1
     __m256 v_bound2 = _mm256_set1_ps(4);
     __m256 v_one = _mm256_set1_ps(1);
 
-    for (uint32_t y = y0; y <= y1; ++y)
+    uint32_t y, x;
+
+    __m256 v_cy, v_cx;
+    __m256 v_zx, v_zy;
+
+    uint32_t i;
+    __m256 v_i;
+
+    __m256 v_zx2, v_zy2, v_zxzy;
+    __m256 v_mag2;
+    __m256 bound_mask;
+    int zero_mask;
+
+    __m256 add_mask;
+    __m256 v_bailout;
+    __m256 bailout_mask;
+
+    __aligned(32) float pixels[8];
+
+    for (y = y0; y <= y1; ++y)
     {
-        __m256 v_cy = _mm256_set1_ps(y);
+        v_cy = _mm256_set1_ps(y);
         v_cy = _mm256_mul_ps(v_cy, v_height_r);
         v_cy = _mm256_add_ps(v_cy, v_center);
         v_cy = _mm256_mul_ps(v_cy, v_scale);
         v_cy = _mm256_add_ps(v_cy, v_shift_y);
 
-        for (uint32_t x = x0; x < x1; x += 8)
+        for (x = x0; x < x1; x += 8)
         {
 
-            __m256 v_cx = _mm256_set_ps(x + 7, x + 6, x + 5, x + 4,
+            v_cx = _mm256_set_ps(x + 7, x + 6, x + 5, x + 4,
                                         x + 3, x + 2, x + 1, x + 0);
 
 
@@ -56,17 +75,17 @@ void mdb_kernel_process_block(uint32_t x0, uint32_t x1, uint32_t y0, uint32_t y1
             v_cx = _mm256_add_ps(v_cx, v_shift_x);
 
 
-            __m256 v_zx = v_cx;
-            __m256 v_zy = v_cy;
+            v_zx = v_cx;
+            v_zy = v_cy;
 
-            uint32_t i = 0;
-            __m256 v_i = _mm256_set1_ps(i);
+            i = 0;
+            v_i = _mm256_set1_ps(i);
             for (; i < bailout; ++i)
             {
 
-                __m256 v_zx2 = _mm256_mul_ps(v_zx, v_zx);
-                __m256 v_zy2 = _mm256_mul_ps(v_zy, v_zy);
-                __m256 v_zxzy = _mm256_mul_ps(v_zx, v_zy);
+                v_zx2 = _mm256_mul_ps(v_zx, v_zx);
+                v_zy2 = _mm256_mul_ps(v_zy, v_zy);
+                v_zxzy = _mm256_mul_ps(v_zx, v_zy);
 
                 v_zx = _mm256_sub_ps(v_zx2, v_zy2);
                 v_zx = _mm256_add_ps(v_zx, v_cx);
@@ -77,29 +96,28 @@ void mdb_kernel_process_block(uint32_t x0, uint32_t x1, uint32_t y0, uint32_t y1
 
                 v_zx2 = _mm256_mul_ps(v_zx, v_zx);
                 v_zy2 = _mm256_mul_ps(v_zy, v_zy);
-                __m256 v_mag2 = _mm256_add_ps(v_zx2, v_zy2);
+                v_mag2 = _mm256_add_ps(v_zx2, v_zy2);
 
-                __m256 bound_mask = _mm256_cmp_ps(v_mag2, v_bound2, _CMP_LT_OQ);
+                bound_mask = _mm256_cmp_ps(v_mag2, v_bound2, _CMP_LT_OQ);
 
-                int zero_mask = _mm256_movemask_ps(bound_mask);
+                zero_mask = _mm256_movemask_ps(bound_mask);
 
                 if (!zero_mask)
                     break;
 
-                __m256 add_mask = _mm256_and_ps(bound_mask, v_one);
+                add_mask = _mm256_and_ps(bound_mask, v_one);
                 v_i = _mm256_add_ps(v_i, add_mask);
 
 
             }
 
-            __m256 v_bailout = _mm256_set1_ps(bailout);
-            __m256 bailout_mask = _mm256_cmp_ps(v_i, v_bailout, _CMP_NEQ_OQ);
+            v_bailout = _mm256_set1_ps(bailout);
+            bailout_mask = _mm256_cmp_ps(v_i, v_bailout, _CMP_NEQ_OQ);
 
             v_i = _mm256_and_ps(v_i, bailout_mask);
 
             v_i = _mm256_div_ps(v_i, v_bailout);
 
-            __aligned(32) float pixels[8];
             _mm256_store_ps(pixels, v_i);
 
             surface_set_pixels(mdb.surf, x, y, 8, pixels);

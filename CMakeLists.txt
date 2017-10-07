@@ -11,7 +11,7 @@ configure_file(mdb/config/config.h.in ${CMAKE_CURRENT_SOURCE_DIR}/mdb/config/con
 
 set(CMAKE_VERBOSE_MAKEFILE Off)
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu99 -D_GNU_SOURCE -fPIC -rdynamic -fvisibility=hidden -march=native -Wall -Wextra -Wno-unused-function")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu99 -D_GNU_SOURCE -fPIC -fvisibility=hidden -march=native -Wall -Wextra -Wno-unused-function -Werror=declaration-after-statement")
 set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DDEBUG -ggdb3 -O0")
 #set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -fsanitize=leak")
 #set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -fsanitize=undefined")
@@ -47,7 +47,7 @@ set(SOURCE_FILES
         mdb/tools/cpu_features.h
         mdb/surface/surface.c
         mdb/surface/surface.h
-        mdb/kernel/bits/mdb_kernel_error.h
+        mdb/tools/error_codes.h
         mdb/kernel/bits/mdb_kernel_event.h
 
         #mdb/tools/cpu_feature_cpuid.c

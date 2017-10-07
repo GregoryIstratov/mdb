@@ -12,4 +12,4 @@
 
 #define return_if(cond, val) if(cond) return (val);
 
-#define __export_sym __attribute__ ((visibility ("default")))
+#define __export_symbol __attribute__ ((visibility ("default")))

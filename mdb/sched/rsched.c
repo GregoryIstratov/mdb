@@ -7,6 +7,7 @@
 #include <mdb/tools/compiler.h>
 #include <mdb/tools/atomic_x86.h>
 #include <mdb/tools/log.h>
+#include <mdb/tools/error_codes.h>
 
 enum
 {
@@ -53,15 +54,19 @@ static void rsched_set_workers_state(rsched* sched, int state);
 
 void rsched_create(rsched** psched, uint32_t workers)
 {
+    rsched* sched;
+    int ret = 0;
+    char tname[32];
+
     *psched = (rsched*)calloc(1, sizeof(rsched));
-    rsched* sched = *psched;
+    sched = *psched;
 
     atomic_store(&sched->cur_task, 0);
 
     sched->queue_top = 0;
     atomic_store(&sched->queue_bot, 0);
 
-    int ret = 0;
+
     if((ret = pthread_cond_init(&sched->cond, NULL)))
     {
         LOG_ERROR("[pthread_cond_init]: %s", strerror(ret));
@@ -96,10 +101,9 @@ void rsched_create(rsched** psched, uint32_t workers)
         }
 
 
-        char name[32];
-        snprintf(name, 32, "worker%u", i);
 
-        if((ret = pthread_setname_np(sched->worker_threads[i], name)))
+        snprintf(tname, 32, "worker%u", i);
+        if((ret = pthread_setname_np(sched->worker_threads[i], tname)))
         {
             LOG_ERROR("[pthread_setname_np]: %s", strerror(ret));
             exit(EXIT_FAILURE);
@@ -122,22 +126,23 @@ void rsched_set_proc_fun(rsched* sched, rsched_proc_fun fun, void* user_ctx)
 
 void rsched_shutdown(rsched* sched)
 {
-    for(uint32_t i = 0; i < sched->n_workers; ++i)
+    uint32_t i = 0;
+    for(; i < sched->n_workers; ++i)
     {
         pthread_cancel(sched->worker_threads[i]);
     }
-
 }
 
 static int rsched_get_worker_id(rsched* sched, pthread_t p_tid)
 {
-    for(uint32_t i = 0; i < sched->n_workers; ++i)
+    uint32_t i = 0;
+    for(; i < sched->n_workers; ++i)
     {
         if(sched->worker_threads[i] == p_tid)
             return i;
     }
 
-    return -1;
+    return MDB_FAIL;
 
 }
 
@@ -148,7 +153,8 @@ uint32_t rsched_get_workers_count(rsched* sched)
 
 static bool rsched_check_workers_state(rsched* sched, int state)
 {
-    for(uint32_t i = 0; i < sched->n_workers; ++i)
+    uint32_t i = 0;
+    for(; i < sched->n_workers; ++i)
     {
         if(sched->worker_info[i].state != state)
             return false;
@@ -260,9 +266,12 @@ void rsched_yield(rsched* sched, uint32_t caller)
 
 void rsched_push(rsched* sched, uint32_t x0, uint32_t x1, uint32_t y0, uint32_t y1)
 {
+    rsched_task* t;
+    uint32_t ext_len;
+
     if(sched->queue_top >= sched->queue_len)
     {
-        uint32_t ext_len = sched->queue_len / 4;
+        ext_len = sched->queue_len / 4;
         LOG_WARN("Detected attempt of out of range accessing to the queue, element {%i, %i, %i, %i}. Extending queue [%i]->[%i]\n",
                 x0, x1, y0, y1,
                 sched->queue_len, sched->queue_len + ext_len);
@@ -270,7 +279,7 @@ void rsched_push(rsched* sched, uint32_t x0, uint32_t x1, uint32_t y0, uint32_t 
         rsched_queue_resize(sched, ext_len, RSCHED_QUEUE_RESIZE_EXTEND | RSCHED_QUEUE_RESIZE_ZERO);
     }
 
-    rsched_task* t = &sched->task_queue[sched->queue_top++];
+    t = &sched->task_queue[sched->queue_top++];
     t->x0 = x0;
     t->x1 = x1;
     t->y0 = y0;

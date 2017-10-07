@@ -30,6 +30,8 @@ static void benchmark_proc_fun(uint32_t x0, uint32_t x1, uint32_t y0, uint32_t y
 
     benchmark* bench = (benchmark*)ctx;
 
+    uint64_t elapsed_time, min_time, max_time;
+
     perf_timer_start(&tm_block);
 
     mdb_kernel_process_block(bench->kernel, x0, x1, y0, y1);
@@ -37,16 +39,16 @@ static void benchmark_proc_fun(uint32_t x0, uint32_t x1, uint32_t y0, uint32_t y
     perf_timer_stop(&tm_block);
 
 
-    uint64_t elapsed_time = perf_timer_diff_ns(&tm_block);
+    elapsed_time = perf_timer_diff_ns(&tm_block);
 
-    uint64_t min_time = atomic_load(&bench->min_block_time);
+    min_time = atomic_load(&bench->min_block_time);
     while(min_time > elapsed_time)
     {
         if(atomic_compare_exchange(&bench->min_block_time, &min_time, elapsed_time))
             break;
     }
 
-    uint64_t max_time = atomic_load(&bench->max_block_time);
+    max_time = atomic_load(&bench->max_block_time);
     while(max_time < elapsed_time)
     {
         if(atomic_compare_exchange(&bench->max_block_time, &max_time, elapsed_time))
@@ -59,8 +61,10 @@ static void benchmark_proc_fun(uint32_t x0, uint32_t x1, uint32_t y0, uint32_t y
 
 void benchmark_create(benchmark** pbench, uint32_t runs, mdb_kernel* kernel, rsched* sched)
 {
+    benchmark* bench;
+
     *pbench = (benchmark*)calloc(1, sizeof(benchmark));
-    benchmark* bench = *pbench;
+    bench = *pbench;
 
     bench->kernel = kernel;
     bench->sched = sched;
@@ -75,6 +79,11 @@ void benchmark_create(benchmark** pbench, uint32_t runs, mdb_kernel* kernel, rsc
     perf_timer_init(&bench->tm_kernel);
 
     rsched_set_proc_fun(bench->sched, &benchmark_proc_fun, bench);
+}
+
+void benchmark_destroy(benchmark* bench)
+{
+    free(bench);
 }
 
 static void benchmark_run_kernel(benchmark* bench)

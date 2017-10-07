@@ -34,11 +34,11 @@ void mdb_kernel_destroy(mdb_kernel* mdb);
 int mdb_kernel_event(mdb_kernel* mdb, int event_type, void* event);
 
 /* Set dimensions of the kernel */
-void mdb_kernel_set_size(mdb_kernel* mdb, uint32_t width, uint32_t height);
+int mdb_kernel_set_size(mdb_kernel* mdb, uint32_t width, uint32_t height);
 
 /* Set surface to the kernel
  */
-void mdb_kernel_set_surface(mdb_kernel* mdb, surface* surf);
+int mdb_kernel_set_surface(mdb_kernel* mdb, surface* surf);
 
 /* Computes values for mandelbrot set surface of given surface area.
  * This invokes the main algorithm of the kernel and writes computed values

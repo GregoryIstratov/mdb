@@ -4,7 +4,7 @@ enum
 {
     MDB_KERNEL_META_NAME    = 1,
     MDB_KERNEL_META_VER_MAJ = 2,
-    MDB_KERNEL_META_VER_MIN = 3,
+    MDB_KERNEL_META_VER_MIN = 3
 };
 
 enum

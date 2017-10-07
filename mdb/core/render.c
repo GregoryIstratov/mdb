@@ -9,6 +9,7 @@
 #if defined(OGL_RENDER_ENABLED)
 #include <mdb/render/ogl_render.h>
 #include <mdb/kernel/bits/mdb_kernel_event.h>
+#include <mdb/tools/error_codes.h>
 
 #endif
 
@@ -78,6 +79,23 @@ static void render_kernel_proc_fun(uint32_t x0, uint32_t x1, uint32_t y0, uint32
     mdb_kernel_process_block(rend_ctx->kernel, x0, x1, y0, y1);
 }
 
+static void run_ogl_render(struct render_ctx* ctx, bool color_enabled)
+{
+    ogl_render* rend;
+
+    ogl_render_create(&rend, "Mdb", ctx->width, ctx->height, ctx);
+
+    ogl_render_init_render_target(rend, &render_update);
+    ogl_render_init_screen(rend, color_enabled);
+
+    ogl_render_set_key_callback(rend, &render_key_callback);
+    ogl_render_set_resize_callback(rend, &render_resize);
+
+    ogl_render_render_loop(rend);
+
+    ogl_render_destroy(rend);
+}
+
 int render_run(rsched* sched, mdb_kernel* kernel, surface* surf, uint32_t width, uint32_t height, bool color_enabled)
 {
     struct render_ctx ctx;
@@ -94,25 +112,13 @@ int render_run(rsched* sched, mdb_kernel* kernel, surface* surf, uint32_t width,
     LOG_SAY("Starting render mode...\nControl keys:\n%s\n", render_control_keys);
 
 #if defined(OGL_RENDER_ENABLED)
-    ogl_render* rend;
-
-    ogl_render_create(&rend, "Mdb", ctx.width, ctx.height, &ctx);
-
-    ogl_render_init_render_target(rend, &render_update);
-    ogl_render_init_screen(rend, color_enabled);
-
-    ogl_render_set_key_callback(rend, &render_key_callback);
-    ogl_render_set_resize_callback(rend, &render_resize);
-
-    ogl_render_render_loop(rend);
-
-    ogl_render_destroy(rend);
+    run_ogl_render(&ctx, color_enabled);
 #else
     UNUSED_PARAM(render_control_keys);
     LOG_ERROR("OGL Render disabled at the build time.");
-    return -1;
+    return MDB_FAIL;
 #endif
 
-    return 0;
+    return MDB_SUCCESS;
 }
 

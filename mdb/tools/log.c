@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include <sys/syscall.h>
 #include <errno.h>
+#include <stdbool.h>
 
 #include "log.h"
 #include "compiler.h"
@@ -95,46 +96,64 @@ static const char* log_color(int lvl) {
     }
 }
 
+
+static inline void _log_append_datetime(FILE* sink)
+{
+    time_t t;
+    struct tm _tml;
+    struct tm* tml;
+
+    if (time(&t) == (time_t)-1) {
+        fprintf(stderr, "[_log] time returns failure");
+        return;
+    }
+
+    localtime_r(&t, &_tml);
+    tml = &_tml;
+
+#ifdef LOG_SHOW_TIME
+    fprintf(sink, "[%02d:%02d:%02d]", tml->tm_hour, tml->tm_min, tml->tm_sec);
+#endif
+#ifdef LOG_SHOW_DATE
+    fprintf(sink, "[%02d/%02d/%d]", tml->tm_mday, tml->tm_mon + 1, tml->tm_year - 100);
+#endif
+
+}
+
+static inline void _log_append_tid(FILE* sink)
+{
+    pid_t tid = (pid_t)syscall(__NR_gettid);
+    fprintf(sink, "[0x%08X]", tid);
+}
+
 void _log(const char* file, int line, const char* fun, int lvl, const char* fmt, ...) {
+    va_list args;
+
     if (lvl <= loglevel) {
 
 #ifdef LOG_ENABLE_MULTITHREADING
         pthread_mutex_lock(&log_mtx);
 #endif
 
-#if defined LOG_SHOW_TIME || defined LOG_SHOW_DATE
-        time_t t;
-        struct tm _tml;
-        struct tm* tml;
-        if (time(&t) == (time_t)-1) {
-            fprintf(stderr, "[_log] time returns failure");
-            return;
-        }
 
-        localtime_r(&t, &_tml);
-        tml = &_tml;
-
-#endif
-
+        /* Set terminal color */
         fprintf(log_sink, "%s", log_color(lvl));
-#ifdef LOG_SHOW_TIME
-        fprintf(log_sink, "[%02d:%02d:%02d]", tml->tm_hour, tml->tm_min, tml->tm_sec);
+
+#if defined(LOG_SHOW_TIME) || defined(LOG_SHOW_DATE)
+        _log_append_datetime(log_sink);
 #endif
-#ifdef LOG_SHOW_DATE
-        fprintf(log_sink, "[%02d/%02d/%d]", tml->tm_mday, tml->tm_mon + 1, tml->tm_year - 100);
-#endif
+
 #ifdef LOG_SHOW_THREAD
-        pid_t tid = (pid_t)syscall(__NR_gettid);
-        fprintf(log_sink, "[0x%08X]", tid);
+        _log_append_tid(log_sink);
 #endif
 
         fprintf(log_sink, "[%s][%s]: ", loglevel_s(lvl), fun);
 
-        va_list args;
         va_start(args, fmt);
         vfprintf(log_sink, fmt, args);
         va_end(args);
 
+        /* restore default terminal color */
         fprintf(log_sink, "%s", LOG_RESET);
 
 #ifdef LOG_SHOW_PATH
@@ -155,11 +174,12 @@ void _log(const char* file, int line, const char* fun, int lvl, const char* fmt,
 
 void _log_say(const char* fmt, ...)
 {
+    va_list args;
+
 #ifdef LOG_ENABLE_MULTITHREADING
     pthread_mutex_lock(&log_mtx);
 #endif
 
-    va_list args;
     va_start(args, fmt);
     vfprintf(log_sink, fmt, args);
     va_end(args);
@@ -175,13 +195,14 @@ void _log_say(const char* fmt, ...)
 
 void _log_param(const char* label, const char* fmt, ...)
 {
+    va_list args;
+
 #ifdef LOG_ENABLE_MULTITHREADING
     pthread_mutex_lock(&log_mtx);
 #endif
 
     fprintf(log_sink, "%-20s: ", label);
 
-    va_list args;
     va_start(args, fmt);
     vfprintf(log_sink, fmt, args);
     va_end(args);

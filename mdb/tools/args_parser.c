@@ -117,14 +117,16 @@ static struct argp_option options[] = {
         {"quiet",   'q', 0,      0, "Don't produce any output", ARG_GROUP_INHERIT},
         {"silent",  's', 0, OPTION_ALIAS, 0, 0},
 
-        {0}
+        {0, 0, 0, 0, 0, 0}
 };
 
 static int parse_int(const char* key, const char* val, int min_allowed, int max_allowed)
 {
-    errno = 0;
     char* pend = NULL;
-    int i = (int)strtol(val, &pend, 10);
+    int i;
+
+    errno = 0;
+    i = (int)strtol(val, &pend, 10);
 
     if(pend != NULL && *pend != '\0')
     {
@@ -150,8 +152,10 @@ static int parse_int(const char* key, const char* val, int min_allowed, int max_
 
 static int parse_int_c(const char* key, const char* val, char** pend, int min_allowed, int max_allowed)
 {
+    int i;
+
     errno = 0;
-    int i = (int)strtol(val, pend, 10);
+    i = (int)strtol(val, pend, 10);
 
     if(errno != 0)
     {
@@ -171,8 +175,9 @@ static int parse_int_c(const char* key, const char* val, char** pend, int min_al
 
 static void parse_block_size(const char* val, struct block_size* bs)
 {
-    errno = 0;
     char* pend = NULL;
+    errno = 0;
+
     bs->x = (uint32_t)parse_int_c("block-size", val, &pend, 8, UINT16_MAX);
 
     if(pend == NULL || (pend != NULL && *pend == '\0'))

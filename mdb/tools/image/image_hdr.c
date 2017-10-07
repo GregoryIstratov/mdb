@@ -147,7 +147,7 @@ STBIWDEF int stbi_write_hdr_to_func(stbi_write_func* func, void* context, int w,
 }
 #endif
 
-#endif//INCLUDE_STB_IMAGE_WRITE_H
+#endif
 
 
 #ifdef _WIN32
@@ -163,7 +163,7 @@ STBIWDEF int stbi_write_hdr_to_func(stbi_write_func* func, void* context, int w,
 
 #include <stdio.h>
 
-#endif // STBI_WRITE_NO_STDIO
+#endif
 
 #include <stdarg.h>
 #include <stdlib.h>
@@ -171,9 +171,9 @@ STBIWDEF int stbi_write_hdr_to_func(stbi_write_func* func, void* context, int w,
 #include <math.h>
 
 #if defined(STBIW_MALLOC) && defined(STBIW_FREE) && (defined(STBIW_REALLOC) || defined(STBIW_REALLOC_SIZED))
-// ok
+
 #elif !defined(STBIW_MALLOC) && !defined(STBIW_FREE) && !defined(STBIW_REALLOC) && !defined(STBIW_REALLOC_SIZED)
-// ok
+
 #else
 #error "Must define all or none of STBIW_MALLOC, STBIW_FREE, and STBIW_REALLOC (or STBIW_REALLOC_SIZED)."
 #endif

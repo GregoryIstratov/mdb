@@ -11,16 +11,23 @@
 
 static char* file_read_shader_source(const char* filename)
 {
-    FILE* in = fopen(filename, "rb");
+    size_t res_size = BUFSIZ;
+    char* res;
+    char* p_res;
+
+    size_t nb_read_total = 0;
+
+    FILE* in;
+
+    in = fopen(filename, "rb");
     if (in == NULL)
     {
         LOG_ERROR("Failed to open the file '%s': %s", filename, strerror(errno));
         return NULL;
     }
 
-    size_t res_size = BUFSIZ;
-    char* res = (char*)malloc(res_size);
-    size_t nb_read_total = 0;
+
+    res = (char*)malloc(res_size);
 
     while (!feof(in) && !ferror(in)) {
         if (nb_read_total + BUFSIZ > res_size) {
@@ -29,7 +36,7 @@ static char* file_read_shader_source(const char* filename)
             res_size = res_size * 2;
             res = (char*)realloc(res, res_size);
         }
-        char* p_res = res + nb_read_total;
+        p_res = res + nb_read_total;
         nb_read_total += fread(p_res, 1, BUFSIZ, in);
     }
 
@@ -41,7 +48,9 @@ static char* file_read_shader_source(const char* filename)
 
 void ogl_shader_log(const char* text, GLuint object)
 {
+    char* log;
     GLint log_length = 0;
+
     if (glIsShader(object))
         glGetShaderiv(object, GL_INFO_LOG_LENGTH, &log_length);
     else if (glIsProgram(object))
@@ -62,7 +71,7 @@ void ogl_shader_log(const char* text, GLuint object)
         return;
     }
 
-    char* log = (char*)malloc(log_length);
+    log = (char*)malloc(log_length);
 
     if (glIsShader(object))
         glGetShaderInfoLog(object, log_length, NULL, log);
@@ -77,12 +86,15 @@ GLuint ogl_shader_create(const char* filename, const char* defines, GLenum type)
 {
     static const char* version_define = "#version 150 \n";
 
+    GLuint res;
+    GLint compile_ok = GL_FALSE;
+
     char *source = file_read_shader_source(filename);
 
     if (source == NULL)
         return 0;
 
-    GLuint res = glCreateShader(type);
+    res = glCreateShader(type);
 
     if(defines)
     {
@@ -98,7 +110,6 @@ GLuint ogl_shader_create(const char* filename, const char* defines, GLenum type)
     }
 
     glCompileShader(res);
-    GLint compile_ok = GL_FALSE;
     glGetShaderiv(res, GL_COMPILE_STATUS, &compile_ok);
 
     free(source);

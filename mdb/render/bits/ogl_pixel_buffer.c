@@ -21,8 +21,11 @@ struct _ogl_pixel_buffer
 
 void ogl_pbo_create(ogl_pixel_buffer** ppbo, uint32_t width, uint32_t height, ogl_data_update_callback callback, void* ctx)
 {
+    GLuint flags;
+    ogl_pixel_buffer* pbo;
+
     *ppbo = calloc(1, sizeof(ogl_pixel_buffer));
-    ogl_pixel_buffer* pbo = *ppbo;
+    pbo = *ppbo;
 
     pbo->width = width;
     pbo->height = height;
@@ -33,7 +36,7 @@ void ogl_pbo_create(ogl_pixel_buffer** ppbo, uint32_t width, uint32_t height, og
     glGenBuffers(1, &pbo->buffer_id);
     glBindBuffer(GL_PIXEL_UNPACK_BUFFER, pbo->buffer_id);
 
-    GLuint flags = GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT;
+    flags = GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT;
     glBufferStorage(GL_PIXEL_UNPACK_BUFFER, pbo->buff_size, 0, flags);
 
     pbo->data = glMapBufferRange(GL_PIXEL_UNPACK_BUFFER, 0, pbo->buff_size, flags);
@@ -76,7 +79,10 @@ void ogl_pbo_destroy(ogl_pixel_buffer* pbo)
 
 void ogl_pbo_resize(ogl_pixel_buffer* pbo, GLsync* sync, uint32_t width, uint32_t height)
 {
-    //FIXME spurious corruption on resize
+    /*FIXME spurious corruption on resize*/
+
+
+    GLuint flags;
 
     LOG_DEBUG("enter");
 
@@ -95,7 +101,7 @@ void ogl_pbo_resize(ogl_pixel_buffer* pbo, GLsync* sync, uint32_t width, uint32_
     glGenBuffers(1, &pbo->buffer_id);
     glBindBuffer(GL_PIXEL_UNPACK_BUFFER, pbo->buffer_id);
 
-    GLuint flags = GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT;
+    flags = GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT;
     glBufferStorage(GL_PIXEL_UNPACK_BUFFER, pbo->buff_size, 0, flags);
 
 
@@ -106,7 +112,6 @@ void ogl_pbo_resize(ogl_pixel_buffer* pbo, GLsync* sync, uint32_t width, uint32_
     glTexImage2D(GL_TEXTURE_2D, 0, GL_R32F, pbo->width, pbo->height, 0, GL_RED, GL_FLOAT, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-
 
     ogl_buffer_lock(sync);
 

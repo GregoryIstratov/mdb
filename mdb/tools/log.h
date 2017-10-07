@@ -1,6 +1,7 @@
 #pragma once
 
 #include <mdb/config/config.h>
+#include "compiler.h"
 
 enum {
     LOGLEVEL_NONE   = 0,
@@ -51,6 +52,8 @@ void log_shutdown(void);
 
 void _log(const char* file, int line, const char* fun, int lvl, const char* fmt, ...);
 
+__export_symbol
 void _log_say(const char* fmt, ...);
 
+__export_symbol
 void _log_param(const char* label, const char* fmt, ...);

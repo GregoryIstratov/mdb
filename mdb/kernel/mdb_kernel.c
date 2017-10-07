@@ -7,23 +7,27 @@
 #include <mdb/tools/log.h>
 
 #include <mdb/kernel/bits/mdb_kernel.h>
-#include <mdb/kernel/bits/mdb_kernel_error.h>
+#include <mdb/tools/error_codes.h>
 
 #include <immintrin.h>
 #include <mdb/tools/cpu_features.h>
 
 
-static void mdb_kernel_init(mdb_kernel* mdb);
+static int mdb_kernel_init(mdb_kernel* mdb);
 
 static int mdb_kernel_load(mdb_kernel* mdb, const char* kernel_name)
 {
-
 #define MDB_KRN_RETURN_IF_ERR()  \
     if ((error = dlerror()) != NULL) \
     { \
         LOG_ERROR("Error on symbol resolving: %s", error); \
+        dlclose(handle); \
         return MDB_FAIL; \
     }
+
+    char filename[1024];
+    void* handle;
+    char* error;
 
     if(!kernel_name)
     {
@@ -31,17 +35,12 @@ static int mdb_kernel_load(mdb_kernel* mdb, const char* kernel_name)
         return MDB_FAIL;
     }
 
-    char filename[1024];
     memset(filename, 0, 1024);
-
     strcpy(filename, "./modules/kernels/");
     strcat(filename, kernel_name);
     strcat(filename, ".so");
 
     LOG_SAY("Loading kernel: %s ...", filename);
-
-    void* handle;
-    char* error;
 
     handle = dlopen(filename, RTLD_NOW);
     if(!handle)
@@ -117,19 +116,21 @@ static void mdb_kernel_log_info(mdb_kernel* mdb)
 
 static int mdb_kernel_check_cpu_features(mdb_kernel* mdb)
 {
+    char fet_buf[256];
+    int mask;
     int features = mdb->cpu_features_fun();
 
     if(!features)
         return MDB_SUCCESS;
 
-    char fet_buf[256];
+
     memset(fet_buf, 0, 256);
 
     cpu_features_to_str(features, fet_buf, 256);
 
     LOG_DEBUG("Required cpu features [%s]", fet_buf);
 
-    int mask = cpu_check_features(features);
+    mask = cpu_check_features(features);
     if(mask)
     {
         cpu_features_to_str(mask, fet_buf, 256);
@@ -145,9 +146,10 @@ static int mdb_kernel_check_cpu_features(mdb_kernel* mdb)
 
 int mdb_kernel_create(mdb_kernel** pmdb, const char* kernel_name)
 {
-    *pmdb = calloc(1, sizeof(mdb_kernel));
-    mdb_kernel* mdb = *pmdb;
+    mdb_kernel* mdb;
 
+    *pmdb = calloc(1, sizeof(mdb_kernel));
+    mdb = *pmdb;
 
     if(mdb_kernel_load(mdb, kernel_name) != MDB_SUCCESS)
         goto error_exit;
@@ -160,7 +162,12 @@ int mdb_kernel_create(mdb_kernel** pmdb, const char* kernel_name)
         goto error_exit;
     }
 
-    mdb_kernel_init(mdb);
+    if(mdb_kernel_init(mdb) != MDB_SUCCESS)
+    {
+        LOG_ERROR("Kernel initialization failed.");
+        goto error_exit;
+    }
+
     mdb_kernel_set_size(mdb, 1024, 1024);
 
     return MDB_SUCCESS;
@@ -172,10 +179,15 @@ error_exit:
 }
 
 
-static void mdb_kernel_init(mdb_kernel* mdb)
+static int mdb_kernel_init(mdb_kernel* mdb)
 {
-    mdb->init_fun();
+    int res;
+    if((res = mdb->init_fun()) != MDB_SUCCESS)
+        return res;
+
     mdb->state = MDB_KRN_INITED;
+
+    return MDB_SUCCESS;
 }
 
 void mdb_kernel_destroy(mdb_kernel* mdb)
@@ -194,14 +206,14 @@ int mdb_kernel_event(mdb_kernel* mdb, int event_type, void* event)
     return mdb->event_handler_fun(event_type, event);
 }
 
-void mdb_kernel_set_surface(mdb_kernel* mdb, surface* surf)
+int mdb_kernel_set_surface(mdb_kernel* mdb, surface* surf)
 {
-    mdb->set_surface_fun(surf);
+    return mdb->set_surface_fun(surf);
 }
 
-void mdb_kernel_set_size(mdb_kernel* mdb, uint32_t width, uint32_t height)
+int mdb_kernel_set_size(mdb_kernel* mdb, uint32_t width, uint32_t height)
 {
-    mdb->set_size_fun(width, height);
+    return mdb->set_size_fun(width, height);
 }
 
 void mdb_kernel_process_block(mdb_kernel* mdb, uint32_t x0, uint32_t x1, uint32_t y0, uint32_t y1)

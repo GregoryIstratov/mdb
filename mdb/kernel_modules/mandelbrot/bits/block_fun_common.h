@@ -13,30 +13,32 @@
 \
     const uint32_t bailout = mdb.bailout;\
     const float di = (float) 1 / bailout;\
+    uint32_t y, x; \
+    uint32_t i; \
+    float cy, cx, zx, zy, zx2, zy2, zxzy, mag2, norm_color; \
 \
-    for (uint32_t y = y0; y <= y1; ++y)\
+    for (y = y0; y <= y1; ++y)\
     {\
-        float cy = (float) y * height_r;\
+        cy = (float) y * height_r;\
         cy += center;\
         cy *= scale;\
         cy += shift_y;\
 \
-        for (uint32_t x = x0; x <= x1; ++x)\
+        for (x = x0; x <= x1; ++x)\
         {\
-            float cx = (float) x * width_r * wxh;\
+            cx = (float) x * width_r * wxh;\
             cx += center;\
             cx *= scale;\
             cx += shift_x;\
 \
-            float zx = cx;\
-            float zy = cy;\
+            zx = cx;\
+            zy = cy;\
 \
-            uint32_t i;\
             for (i = 0; i < bailout; ++i)\
             {\
-                float zx2  = zx * zx;\
-                float zy2  = zy * zy;\
-                float zxzy = zx * zy;\
+                zx2  = zx * zx;\
+                zy2  = zy * zy;\
+                zxzy = zx * zy;\
 \
                 zx = zx2 - zy2;\
                 zx = zx  + cx;\
@@ -48,7 +50,7 @@
                 zx2 = zx * zx;\
                 zy2 = zy * zy;\
 \
-                float mag2 = zx2 + zy2;\
+                mag2 = zx2 + zy2;\
 \
                 if(mag2 > 4.0f)\
                     break;\
@@ -57,9 +59,9 @@
             if (i == bailout)\
                 i = 0;\
 \
-            float norm_col = (float)(i * di);\
+            norm_color = (float)(i * di);\
 \
-            surface_set_pixels(mdb.surf, x, y, 1, &norm_col); \
+            surface_set_pixels(mdb.surf, x, y, 1, &norm_color); \
         }\
     }\
 }

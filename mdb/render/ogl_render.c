@@ -231,9 +231,12 @@ void ogl_render_set_resize_callback(ogl_render* rend, ogl_render_resize_callback
 void ogl_render_render_loop(ogl_render* rend)
 {
     char title[32];
+    double start, end, elapsed;
+    uint32_t fps;
+
     while (!glfwWindowShouldClose(rend->window))
     {
-        double start = sample_timer();
+        start = sample_timer();
 
         ogl_pbo_update(rend->pbo, &rend->sync);
 
@@ -273,10 +276,12 @@ void ogl_render_render_loop(ogl_render* rend)
 
         glfwPollEvents();
 
-        double end = sample_timer();
-        double elapsed = end - start;
-        uint32_t fps = (uint32_t)(1.0/elapsed);
+        end = sample_timer();
+        elapsed = end - start;
+        fps = (uint32_t)(1.0/elapsed);
+
         snprintf(title, 32, "f:%.3f %u", elapsed, fps);
+
         glfwSetWindowTitle(rend->window, title);
     }
 }

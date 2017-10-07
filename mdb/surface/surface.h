@@ -15,7 +15,7 @@ enum
 
 
     /* Surface buffer data type */
-    SURFACE_BUFFER_F32      = 1<<20,
+    SURFACE_BUFFER_F32      = 1<<20
 };
 
 typedef struct _surface surface;
@@ -36,7 +36,7 @@ void surface_set_buffer(surface* surf, void* buffer);
  * If x + n >= width not fitting pixels will be discarded.
  * If y >= height all pixels will be discarded.
  */
-__export_sym
+__export_symbol
 void surface_set_pixels(surface* surf, uint32_t x, uint32_t y, uint32_t n, void* pix_data);
 
 /* Save surface to Radiance HDR RGBE image format.

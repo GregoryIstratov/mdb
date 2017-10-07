@@ -13,8 +13,9 @@ int mdb_kernel_cpu_features(void)
 }
 
 
-/* Override default compiler options for generating common generic code
- * without any vector extension like sse,avx,fma, etc. and force it to use x87 math coprocessor instead of default sse
+/* Override default compiler options for generating code
+ * without any vector extension like mmx,sse,avx,fma, etc.
+ * and force it to use x87 math coprocessor instead of default sse for x86-64
  */
-__attribute__((target("arch=x86-64,tune=generic,no-mmx,no-sse,no-sse2,no-sse3,no-sse4,no-avx,no-avx2,no-fma,fpmath=387")))
+__attribute__((target("arch=x86-64,no-mmx,no-sse,no-sse2,no-sse3,no-ssse3,no-sse4,no-avx,no-avx2,no-fma")))
 MDB_KERNEL_DEFINE_PROCESS_BLOCK_FUN(mdb_kernel_process_block)

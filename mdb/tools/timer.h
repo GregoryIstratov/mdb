@@ -20,10 +20,11 @@ __always_inline static double ns_to_ms(uint64_t ns)
 
 __always_inline static double timespec_get_total_sec(const struct timespec* ts)
 {
+    double total_sec;
+
     if (ts->tv_sec == 0)
         return (double) ts->tv_nsec / NANOSECONDS_IN_SECOND;
 
-    double total_sec;
     total_sec = (double) ts->tv_nsec / NANOSECONDS_IN_SECOND;
     total_sec += (double) ts->tv_sec;
 
@@ -46,10 +47,12 @@ __always_inline static double sample_timer(void)
 
 __always_inline static uint64_t timespec_get_total_ns(const struct timespec* ts)
 {
+    uint64_t total_ns;
+
     if (ts->tv_sec == 0)
         return (uint64_t)ts->tv_nsec;
 
-    uint64_t total_ns = (uint64_t) ts->tv_sec * NANOSECONDS_IN_SECOND;
+    total_ns = (uint64_t) ts->tv_sec * NANOSECONDS_IN_SECOND;
     total_ns += ts->tv_nsec;
 
     return total_ns;

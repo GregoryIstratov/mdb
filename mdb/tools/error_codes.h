@@ -6,5 +6,5 @@ enum
     MDB_SUCCESS         = 0,
 
 
-    MDB_ERR_UNKNOWN     = 0x10000,
+    MDB_ERR_UNKNOWN     = 0x10000
 };

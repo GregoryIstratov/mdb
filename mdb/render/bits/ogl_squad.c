@@ -63,8 +63,10 @@ static void ogl_squad_create_program(ogl_squad* squad, bool color_enabled)
 
 void ogl_squad_create(ogl_squad** psquad, bool color_enabled)
 {
+    ogl_squad* squad;
+
     *psquad = calloc(1, sizeof(ogl_squad));
-    ogl_squad* squad = *psquad;
+    squad = *psquad;
 
     glGenVertexArrays(1, &squad->vao);
 

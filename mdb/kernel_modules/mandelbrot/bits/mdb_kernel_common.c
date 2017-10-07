@@ -104,18 +104,23 @@ static int event_keyboard(struct mdb_event_keyboard* event)
     return MDB_SUCCESS;
 }
 
-void mdb_kernel_init(void)
+int mdb_kernel_init(void)
 {
     mdb.bailout = 256;
     mdb.scale   = 2.793042f;
     mdb.shift_x = -0.860787f;
     mdb.shift_y = 0.0f;
+
+    KPARAM_INFO("[KRN] BAILOUT", "%d", mdb.bailout);
+    //KPARAM_INFO("[KRN] SCALE ")
+
+    return MDB_SUCCESS;
 }
 
 
-void mdb_kernel_shutdown(void)
+int mdb_kernel_shutdown(void)
 {
-
+    return MDB_SUCCESS;
 }
 
 int mdb_kernel_event_handler(int type, void* event)
@@ -151,17 +156,21 @@ int mdb_kernel_metadata_query(int query, char* buff, uint32_t buff_size)
     }
 }
 
-void mdb_kernel_set_size(uint32_t width, uint32_t height)
+int mdb_kernel_set_size(uint32_t width, uint32_t height)
 {
     mdb.width = width;
     mdb.height = height;
     mdb.width_r = 1.0f / width;
     mdb.height_r = 1.0f / height;
     mdb.aspect_ratio = (float)width / height;
+
+    return MDB_SUCCESS;
 }
 
 
-void mdb_kernel_set_surface(surface* surf)
+int mdb_kernel_set_surface(surface* surf)
 {
     mdb.surf = surf;
+
+    return MDB_SUCCESS;
 }
