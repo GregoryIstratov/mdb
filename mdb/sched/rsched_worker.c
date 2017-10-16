@@ -25,22 +25,16 @@ void rsched_worker_destroy(struct rsched_worker* worker)
 {
         int state = rsched_get_worker_state(worker);
 
-        RSCHED_DEBUG("Worker [%d] state = %d", worker->id, state);
-
         if(state != RS_ST_DOWN)
         {
                 rsched_send_worker_sig(worker, RS_SIG_QUIT);
         }
-
-        RSCHED_DEBUG("Joining worker [%d] thread...", worker->id);
 
         pthread_join(worker->pthr_id, NULL);
 
         pthread_spin_destroy(&worker->lock);
 
         rsched_worker_destroy_stats(&worker->stats);
-
-        RSCHED_DEBUG("Worker [%d] has been destroyed.", worker->id);
 }
 
 int rsched_worker_init(struct rsched_worker* worker, uint32_t id,
@@ -60,8 +54,6 @@ int rsched_worker_init(struct rsched_worker* worker, uint32_t id,
         worker->id = id;
 
         pthread_spin_init(&worker->lock, 0);
-
-        RSCHED_DEBUG("Creating worker[%d] thread...", id);
 
         ret = pthread_create(&worker->pthr_id,
                              NULL,
@@ -155,8 +147,6 @@ void* rsched_worker(void* arg)
 
         int sig;
 
-        RSCHED_DEBUG("Worker [%d] initialization state. Yielding...", worker_id);
-
         goto worker_yield;
 
 worker_loop:
@@ -171,8 +161,6 @@ worker_yield:
 sig_handle:
         if(likely(sig == RS_SIG_START))
         {
-                RSCHED_DEBUG("Worker [%d] SIG_START.", worker_id);
-
                 pthread_spin_lock(&worker->lock);
                 user_ctx = worker->user_ctx;
                 proc_fun = worker->user_fun;
@@ -188,31 +176,18 @@ sig_handle:
                         goto worker_exit;
                 }
 
-                RSCHED_DEBUG("Worker [%d] Setting state to RUNNING...",
-                             worker_id);
-
                 rsched_worker_set_state(worker, RS_ST_RUNNING);
-
-                RSCHED_DEBUG("Worker [%d] Unlocking signals...", worker_id);
-
                 rsched_worker_sig_unlock(worker);
 
                 goto worker_loop;
         }
         else if(sig == RS_SIG_QUIT)
         {
-                RSCHED_DEBUG("Worker [%d] SIG_QUIT.", worker_id);
-
                 goto worker_exit;
         }
         else if(sig == RS_SIG_INT)
         {
-                RSCHED_DEBUG("Worker [%d] SIG_INT.", worker_id);
-
-                RSCHED_DEBUG("Worker [%d] Unlocking signals...", worker_id);
-
                 rsched_worker_sig_unlock(worker);
-
                 goto worker_yield;
         }
         else
@@ -227,15 +202,9 @@ sig_handle:
 worker_exit:
         LOG_VINFO(LOG_VERBOSE1, "Worker [%d] exiting...", worker_id);
 
-        RSCHED_DEBUG("Worker [%d] Setting state to DOWN...", worker_id);
-
         rsched_worker_set_state(worker, RS_ST_DOWN);
 
-        RSCHED_DEBUG("Worker [%d] Unlocking signals...", worker_id);
-
         rsched_worker_sig_unlock(worker);
-
-        RSCHED_DEBUG("Worker [%d] exit thread.", worker_id);
 
         return NULL;
 }

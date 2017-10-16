@@ -157,10 +157,6 @@ int rsched_worker_yield(struct rsched_worker* worker)
 {
         int sig;
 
-        RSCHED_DEBUG("Worker [%d] yield. "
-                     "Setting worker state to WAITING...",
-                     worker->id);
-
         rsched_worker_set_state(worker, RS_ST_WAITING);
 
         sig = rsched_worker_sig_lock_receive(worker);

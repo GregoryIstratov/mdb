@@ -70,9 +70,6 @@ void rsched_queue_push(struct rsched_queue* queue,
 {
         struct rsched_task* t;
 
-        RSCHED_DEBUG("Queue push: { %04d, %04d, %04d, %04d }",
-                     x0, x1, y0, y1);
-
         if(queue->length >= queue->capacity)
         {
                 uint32_t ext_n = queue->capacity / 4;

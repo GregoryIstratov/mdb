@@ -53,16 +53,10 @@ int rsched_create(struct rsched** psched, struct rsched_options* opts)
         struct rsched* sched;
         uint32_t workers = opts->threads - 1;
 
-        RSCHED_DEBUG("Creating scheduler...");
-
         rsched_init_structure(psched, opts);
         sched = *psched;
 
-        RSCHED_DEBUG("Creating scheduler queue...");
-
         rsched_queue_init(&sched->queue);
-
-        RSCHED_DEBUG("Creating %d workers...", workers);
 
         for(i = 0; i < workers; ++i)
         {
@@ -75,15 +69,11 @@ int rsched_create(struct rsched** psched, struct rsched_options* opts)
                         goto shutdown_ret_fail;
         }
 
-        RSCHED_DEBUG("Workers created. Synchronizing...");
-
         if(rsched_wait_workers(sched) != MDB_SUCCESS)
         {
                 LOG_ERROR("Failed to sync workers.");
                 goto shutdown_ret_fail;
         }
-
-        RSCHED_DEBUG("Scheduler has been successfully created.");
 
         return MDB_SUCCESS;
 
@@ -208,8 +198,6 @@ uint32_t rsched_threads_count(struct rsched* sched)
 
 void rsched_requeue(struct rsched* sched)
 {
-        RSCHED_DEBUG("Requeue'ing tasks...");
-
         rsched_queue_requeue(&sched->queue);
 }
 
@@ -253,21 +241,6 @@ int rsched_wait_workers(struct rsched* sched)
 }
 
 static inline
-void rsched_assert_workers_state(struct rsched* sched, int state)
-{
-        uint32_t i;
-        for(i = 0; i < sched->n_workers; ++i)
-        {
-                int st = rsched_get_worker_state(&sched->worker[i]);
-                if(st != state)
-                {
-                        LOG_WARN("Assertion failed! Worker [%d] state %d != %d",
-                                 i, st, state);
-                }
-        }
-}
-
-static inline
 void rsched_run_workers(struct rsched* sched)
 {
         uint32_t i;
@@ -284,8 +257,6 @@ int rsched_host_yield(struct rsched* sched)
         void* user_ctx;
         struct worker_stats* stats = &sched->host_stats;
 
-        RSCHED_DEBUG("Checking process function...");
-
         user_ctx = sched->user_ctx;
         proc_fun = sched->user_fun;
         if(proc_fun == NULL)
@@ -296,11 +267,7 @@ int rsched_host_yield(struct rsched* sched)
                 return MDB_FAIL;
         }
 
-        RSCHED_DEBUG("Setting workers to run...");
-
         rsched_run_workers(sched);
-
-        RSCHED_DEBUG("Beginning process loop...");
 
         rsched_profile_start(&stats->profile.run);
         for (;;)
@@ -327,21 +294,13 @@ int rsched_host_yield(struct rsched* sched)
 
                 rsched_profile_stop(&stats->profile.task);
         }
-        rsched_profile_stop(&stats->profile.run);
-
-        RSCHED_DEBUG("Processing loop ended. Synchronizing workers...");
+        rsched_profile_stop(&stats->profile.run);;
 
         if(rsched_wait_workers(sched) != MDB_SUCCESS)
         {
                 LOG_ERROR("Failed to sync workers.");
                 return MDB_FAIL;
         }
-
-
-        if(IS_ENABLED(CONFIG_RSCHED_DEBUG))
-                rsched_assert_workers_state(sched, RS_ST_WAITING);
-
-        RSCHED_DEBUG("Returning control to the host...");
 
         return MDB_SUCCESS;
 }

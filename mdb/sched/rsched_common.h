@@ -6,13 +6,10 @@
 
 #include "rsched_profile.h"
 
-#if defined(NDEBUG) && defined(CONFIG_RSCHED_DEBUG)
-#undef CONFIG_RSCHED_DEBUG
+#if defined(CONFIG_RSCHED_DEBUG)
+#error Rsched debug system has moved to a separate patch file, you must apply \
+it before enabling
 #endif
-
-#define RSCHED_DEBUG(fmt, ...) if(IS_ENABLED(CONFIG_RSCHED_DEBUG)) \
-                                     LOG_DEBUG(fmt, ##__VA_ARGS__)
-
 
 typedef void(* rsched_user_fun)(uint32_t x0, uint32_t x1,
                                 uint32_t y0, uint32_t y1,
