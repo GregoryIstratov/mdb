@@ -8,6 +8,17 @@
  */
 
 /* ---------------------------------------------------
+ * Arg parser parameters
+ * -------------------------------------------------*/
+
+
+/* Enable debug information in arg parser
+ * Note that arg parse doesn't use default logging system
+ * It uses only stdout and strerr for output
+ */
+#cmakedefine CONFIG_ARG_PARSER_DEBUG 1
+
+/* ---------------------------------------------------
  * Logging parameters
  * -------------------------------------------------*/
 
@@ -27,6 +38,22 @@
 
 /* If enabled protect logging functions with a mutex */
 #cmakedefine CONFIG_LOG_MULTITHREADING 1
+
+/* ---------------------------------------------------
+ * Scheduler parameters
+ * -------------------------------------------------*/
+
+/* Enable scheduler debug output
+ * This may lead to a huge performance impact and a massive verbose output.
+ * Don't enable it unless you know what you're doing.
+ * This option has an effect only in a debug build
+ */
+#cmakedefine CONFIG_RSCHED_DEBUG 1
+
+/* Enable scheduler profiling
+ * This records various performance timers and shows statistics on exit
+ */
+#cmakedefine CONFIG_RSCHED_PROFILE 1
 
 /* ---------------------------------------------------
  * Kernel parameters

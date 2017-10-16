@@ -9,6 +9,17 @@
  */
 
 /* ---------------------------------------------------
+ * Arg parser parameters
+ * -------------------------------------------------*/
+
+
+/* Enable debug information in arg parser
+ * Note that arg parse doesn't use default logging system
+ * It uses only stdout and strerr for output
+ */
+/* #undef CONFIG_ARG_PARSER_DEBUG */
+
+/* ---------------------------------------------------
  * Logging parameters
  * -------------------------------------------------*/
 
@@ -28,6 +39,22 @@
 
 /* If enabled protect logging functions with a mutex */
 #define CONFIG_LOG_MULTITHREADING 1
+
+/* ---------------------------------------------------
+ * Scheduler parameters
+ * -------------------------------------------------*/
+
+/* Enable scheduler debug output
+ * This may lead to a huge performance impact and a massive verbose output.
+ * Don't enable it unless you know what you're doing.
+ * This option has an effect only in a debug build
+ */
+/* #undef CONFIG_RSCHED_DEBUG */
+
+/* Enable scheduler profiling
+ * This records various performance timers and shows statistics on exit
+ */
+#define CONFIG_RSCHED_PROFILE 1
 
 /* ---------------------------------------------------
  * Kernel parameters

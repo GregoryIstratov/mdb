@@ -15,6 +15,7 @@
 #include <locale.h>
 #include <mdb/tools/cpu_features.h>
 #include <mdb/tools/error_codes.h>
+#include <mdb/tools/timer.h>
 
 static const char* mode_str(int mode)
 {
@@ -43,21 +44,30 @@ static uint32_t get_nthreads(void)
     return (uint32_t)nproc_avail;
 }
 
-static void print_input_params(struct arguments* args, uint32_t threads)
+static void print_input_params(struct arguments* args)
 {
-    const char* mode_s = mode_str(args->mode);
-    PARAM_INFO("Run mode", "%s", mode_s);
-    if(args->mode == MODE_BENCHMARK)
-        PARAM_INFO("Benchmark runs", "%i", args->benchmark_runs);
-    PARAM_INFO("Kernel", "%s", args->kernel_name);
-    PARAM_INFO("Threads", "%i", threads);
-    PARAM_INFO("Block size", "%ix%i", args->block_size.x, args->block_size.y);
-    PARAM_INFO("Width", "%i", args->width);
-    PARAM_INFO("Height", "%i", args->height);
-    PARAM_INFO("Bailout", "%i", args->bailout);
+        const char* mode_s = mode_str(args->mode);
+
+
+        PARAM_INFO("Run mode", "%s", mode_s);
+
+        if(args->mode == MODE_BENCHMARK)
+                PARAM_INFO("Benchmark runs", "%i", args->benchmark_runs);
+
+        PARAM_INFO("Kernel", "%s", args->kernel_name);
+
+        if(args->threads == -1)
+                PARAM_INFO("Threads", "%s", "auto");
+        else
+                PARAM_INFO("Threads", "%d", args->threads);
+
+        PARAM_INFO("Block size", "%ix%i", args->block_size_x, args->block_size_y);
+        PARAM_INFO("Width", "%i", args->width);
+        PARAM_INFO("Height", "%i", args->height);
+        PARAM_INFO("Bailout", "%i", args->bailout);
 }
 
-static int run_benchmark_mode(mdb_kernel* kernel, rsched* sched, struct arguments* args)
+static int run_benchmark_mode(mdb_kernel* kernel, struct rsched* sched, struct arguments* args)
 {
     surface* surf;
     benchmark* bench;
@@ -103,7 +113,7 @@ static int run_benchmark_mode(mdb_kernel* kernel, rsched* sched, struct argument
     return MDB_SUCCESS;
 }
 
-static int run_render_mode(mdb_kernel* kernel, rsched* sched, struct arguments* args)
+static int run_render_mode(mdb_kernel* kernel, struct rsched* sched, struct arguments* args)
 {
     surface* surf;
     int ret = MDB_SUCCESS;
@@ -131,13 +141,62 @@ exit:
     return ret;
 }
 
+static void configure_rsched_options(struct rsched_options* opts,
+                                     struct arguments* args)
+{
+        if(args->threads <= -1)
+                opts->threads = get_nthreads();
+        else
+                opts->threads = (uint32_t)args->threads;
+
+
+#if defined(CONFIG_RSCHED_PROFILE)
+        opts->profile.run_hist.show =
+                optional_get(&args->rsched.run_hist.show, true);
+
+        opts->profile.run_hist.log_scale =
+                optional_get(&args->rsched.run_hist.log_scale, false);
+
+        opts->profile.run_hist.size =
+                optional_get(&args->rsched.run_hist.size, 8);
+
+        opts->profile.run_hist.min =
+                optional_get(&args->rsched.run_hist.min, 1 * NANOSECONDS_IN_MILLISECOND);
+
+        opts->profile.run_hist.max =
+                optional_get(&args->rsched.run_hist.max, 30 * NANOSECONDS_IN_MILLISECOND);
+
+
+        opts->profile.task_hist.show =
+                optional_get(&args->rsched.task_hist.show, true);
+
+        opts->profile.task_hist.log_scale =
+                optional_get(&args->rsched.task_hist.log_scale, false);
+
+        opts->profile.task_hist.size =
+                optional_get(&args->rsched.task_hist.size, 16);
+
+        opts->profile.task_hist.min =
+                optional_get(&args->rsched.task_hist.min, 20 * NANOSECONDS_IN_MICROSECOND);
+
+        opts->profile.task_hist.max =
+                optional_get(&args->rsched.task_hist.max, 143 * NANOSECONDS_IN_MICROSECOND);
+
+
+        memcpy(&opts->profile.payload_hist, &opts->profile.task_hist,
+               sizeof(opts->profile.task_hist));
+
+#endif
+}
+
 int main(int argc, char** argv)
 {
     struct arguments args;
-    uint32_t threads;
 
     mdb_kernel* kernel;
-    rsched* sched;
+        struct rsched* sched;
+        struct rsched_options rsched_opts = {0};
+    struct block_size block_size;
 
     bool exit_failure = false;
 
@@ -147,14 +206,10 @@ int main(int argc, char** argv)
 
     args_parse(argc, argv, &args);
 
-    log_init(LOGLEVEL_ALL, NULL);
-
-    if(args.threads <= -1)
-        threads = get_nthreads();
-    else
-        threads = (uint32_t)args.threads;
-
-    print_input_params(&args, threads);
+    log_init(
+            args.silent? LOGLEVEL_NONE : LOGLEVEL_ALL,
+            args.verbose,
+            NULL);
 
 
     if(mdb_kernel_create(&kernel, args.kernel_name) != MDB_SUCCESS)
@@ -165,10 +220,17 @@ int main(int argc, char** argv)
     }
 
 
-    rsched_create(&sched, threads);
-    rsched_create_tasks(sched, (uint32_t) args.width, (uint32_t) args.height, &args.block_size);
+    print_input_params(&args);
 
-    LOG_DEBUG("Enqueued tasks %u", rsched_enqueued_tasks(sched));
+    block_size.x = args.block_size_x;
+    block_size.y = args.block_size_y;
+
+        configure_rsched_options(&rsched_opts, &args);
+
+    rsched_create(&sched, &rsched_opts);
+    rsched_tune_thread_affinity(sched);
+    rsched_create_tasks(sched, (uint32_t) args.width, (uint32_t) args.height,
+                        &block_size);
 
     if(args.mode == MODE_BENCHMARK || args.mode == MODE_ONESHOT)
     {
@@ -194,6 +256,7 @@ int main(int argc, char** argv)
     }
 
 shutdown:
+        rsched_print_stats(sched);
     rsched_shutdown(sched);
     mdb_kernel_destroy(kernel);
     log_shutdown();

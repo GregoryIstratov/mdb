@@ -21,11 +21,13 @@
 #define LOG_RESET "\x1B[0m"
 
 static int loglevel = LOGLEVEL_DEBUG;
+static int verb_lvl = LOG_NO_VERBOSE;
 static FILE* log_sink = NULL;
 static pthread_mutex_t log_mtx;
 
-void log_init(int loglvl, const char* filename) {
+void log_init(int loglvl, int _verb_lvl, const char* filename) {
     loglevel = loglvl;
+    verb_lvl = _verb_lvl;
 
     if(IS_ENABLED(CONFIG_LOG_MULTITHREADING))
         pthread_mutex_init(&log_mtx, NULL);
@@ -122,9 +124,8 @@ static inline void _log_append_tid(FILE* sink)
     fprintf(sink, "[0x%08X]", tid);
 }
 
-void _log(const char* file, int line, const char* fun, int lvl, const char* fmt, ...) {
-    va_list args;
-
+static void __log(const char* file, int line, const char* fun, int lvl, const char* fmt, va_list args)
+{
     if (lvl <= loglevel) {
 
         if(IS_ENABLED(CONFIG_LOG_MULTITHREADING))
@@ -143,9 +144,9 @@ void _log(const char* file, int line, const char* fun, int lvl, const char* fmt,
 
         fprintf(log_sink, "[%s][%s]: ", loglevel_s(lvl), fun);
 
-        va_start(args, fmt);
+
         vfprintf(log_sink, fmt, args);
-        va_end(args);
+
 
         /* restore default terminal color */
         fprintf(log_sink, "%s", LOG_RESET);
@@ -158,6 +159,26 @@ void _log(const char* file, int line, const char* fun, int lvl, const char* fmt,
 
         if(IS_ENABLED(CONFIG_LOG_MULTITHREADING))
             pthread_mutex_unlock(&log_mtx);
+    }
+}
+
+void _log(const char* file, int line, const char* fun, int lvl, const char* fmt, ...)
+{
+    va_list args;
+    va_start(args, fmt);
+    __log(file, line, fun, lvl, fmt, args);
+    va_end(args);
+}
+
+void _log_verbose(const char* file, int line, const char* fun, int lvl, int verbose, const char* fmt, ...)
+{
+    if(verbose >= verb_lvl)
+    {
+        va_list args;
+
+        va_start(args, fmt);
+        __log(file, line, fun, lvl, fmt, args);
+        va_end(args);
     }
 }
 

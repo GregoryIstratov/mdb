@@ -37,6 +37,7 @@ void surface_set_buffer(surface* surf, void* buffer);
  * If y >= height all pixels will be discarded.
  */
 __export_symbol
+__hot
 void surface_set_pixels(surface* surf, uint32_t x, uint32_t y, uint32_t n, void* pix_data);
 
 /* Save surface to Radiance HDR RGBE image format.

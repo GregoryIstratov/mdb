@@ -35,7 +35,9 @@
 
 #define KPARAM_INFO(label, fmt, ...) _log_param((label), (fmt), ##__VA_ARGS__)
 
-__export_symbol void mdb_kernel_process_block(uint32_t x0, uint32_t x1, uint32_t y0, uint32_t y1);
+__export_symbol
+__hot
+void mdb_kernel_process_block(uint32_t x0, uint32_t x1, uint32_t y0, uint32_t y1);
 __export_symbol int  mdb_kernel_set_surface(surface* surf);
 __export_symbol int  mdb_kernel_set_size(uint32_t width, uint32_t height);
 __export_symbol int  mdb_kernel_shutdown(void);

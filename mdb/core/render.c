@@ -6,10 +6,13 @@
 #include <mdb/render/ogl_render.h>
 #endif
 
+#include <stdlib.h>
+#include <string.h>
+
+
 #include <mdb/sched/rsched.h>
 #include <mdb/kernel/mdb_kernel.h>
 #include <mdb/tools/compiler.h>
-#include <string.h>
 #include <mdb/tools/log.h>
 #include <mdb/kernel/bits/mdb_kernel_event.h>
 #include <mdb/tools/error_codes.h>
@@ -28,7 +31,7 @@ static const char* render_control_keys =
 
 struct render_ctx
 {
-    rsched* sched;
+        struct rsched* sched;
     mdb_kernel* kernel;
     surface* surf;
     uint32_t width;
@@ -71,7 +74,12 @@ static void render_update(void* data, void* context)
 
     surface_set_buffer(ctx->surf, data);
 
-    rsched_yield(ctx->sched, RSCHED_ROOT);
+    if(rsched_host_yield(ctx->sched) != MDB_SUCCESS)
+    {
+        LOG_ERROR("Scheduler failed to yield.");
+        rsched_shutdown(ctx->sched);
+        exit(EXIT_FAILURE);
+    }
 
     rsched_requeue(ctx->sched);
 }
@@ -102,7 +110,7 @@ static void run_ogl_render(struct render_ctx* ctx, bool color_enabled)
 }
 #endif
 
-int render_run(rsched* sched, mdb_kernel* kernel, surface* surf, uint32_t width, uint32_t height, bool color_enabled)
+int render_run(struct rsched* sched, mdb_kernel* kernel, surface* surf, uint32_t width, uint32_t height, bool color_enabled)
 {
     struct render_ctx ctx;
 
@@ -113,7 +121,7 @@ int render_run(rsched* sched, mdb_kernel* kernel, surface* surf, uint32_t width,
     ctx.kernel = kernel;
     ctx.surf = surf;
 
-    rsched_set_proc_fun(sched, &render_kernel_proc_fun, &ctx);
+        rsched_set_user_context(sched, &render_kernel_proc_fun, &ctx);
 
     LOG_SAY("Starting render mode...\nControl keys:\n%s\n", render_control_keys);
 

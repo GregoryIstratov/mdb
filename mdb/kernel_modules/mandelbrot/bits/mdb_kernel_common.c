@@ -2,6 +2,9 @@
 
 static uint32_t bailout_get_mod(uint32_t bailout)
 {
+    if(bailout == 1)
+        return 0;
+
     if (bailout < 256)
         return 1;
     if (bailout < 512)
@@ -106,10 +109,26 @@ static int event_keyboard(struct mdb_event_keyboard* event)
 
 int mdb_kernel_init(void)
 {
-    mdb.bailout = 256;
-    mdb.scale   = 2.793042f;
-    mdb.shift_x = -0.860787f;
-    mdb.shift_y = 0.0f;
+    /* View */
+
+    switch(2)
+    {
+        case 1:
+            mdb.bailout = 1;
+            mdb.scale   = 2.793042f;
+            mdb.shift_x = -0.860787f;
+            mdb.shift_y = 0.0f;
+            break;
+
+        default:
+        case 2:
+            mdb.bailout = 256;
+            mdb.scale   = 0.00188964f;
+            mdb.shift_x = -1.347385054652062f;
+            mdb.shift_y = -0.063483549665202f;
+            break;
+
+    }
 
     KPARAM_INFO("[KRN] BAILOUT", "%d", mdb.bailout);
     //KPARAM_INFO("[KRN] SCALE ")

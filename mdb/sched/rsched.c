@@ -1,391 +1,362 @@
 #include "rsched.h"
 
 #include <stdlib.h>
+#include <time.h>
 #include <malloc.h>
 #include <string.h>
+#include <math.h>
 #include <pthread.h>
+#include <sched.h>
+#include <unistd.h>
+#include <errno.h>
 #include <mdb/tools/compiler.h>
-#include <mdb/tools/atomic_x86.h>
+#include <mdb/tools/atomic.h>
 #include <mdb/tools/log.h>
 #include <mdb/tools/error_codes.h>
+#include <mdb/tools/timer.h>
+#include <mdb/tools/hist.h>
 
-enum
+#include "rsched_queue.h"
+#include "rsched_worker.h"
+#include "rsched_common.h"
+
+
+static inline
+int rsched_wait_workers(struct rsched* sched);
+
+static
+void rsched_init_structure(struct rsched** psched, struct rsched_options* opts)
 {
-    RC_WORKER_RUNNING,
-    RC_WORKER_SLEEP,
-    RC_WORKER_PENDING_START,
-};
+        struct rsched* sched;
+        uint32_t workers = opts->threads - 1;
 
-typedef struct
+        *psched = calloc(1, sizeof(**psched));
+        sched = *psched;
+
+        sched->worker       = calloc(workers, sizeof(*sched->worker));
+        sched->n_workers    = workers;
+        sched->user_fun     = NULL;
+        sched->user_ctx     = NULL;
+
+        rsched_worker_init_stats(&sched->host_stats, opts);
+
+#if defined(CONFIG_RSCHED_PROFILE)
+        sched->stats.run_time_hist_show = opts->profile.run_hist.show;
+        sched->stats.task_time_hist_show = opts->profile.task_hist.show;
+        sched->stats.payload_hist_show = opts->profile.payload_hist.show;
+#endif
+}
+
+int rsched_create(struct rsched** psched, struct rsched_options* opts)
 {
-    uint32_t x0, x1, y0, y1;
-} rsched_task;
+        uint32_t i;
+        struct rsched* sched;
+        uint32_t workers = opts->threads - 1;
 
-struct rsched_worker_info
-{
-    int state;
-};
+        RSCHED_DEBUG("Creating scheduler...");
 
-struct _rsched
-{
-    rsched_task* task_queue;
-    uint32_t     queue_len;
+        rsched_init_structure(psched, opts);
+        sched = *psched;
 
-    __atomic uint32_t cur_task;
-    uint32_t queue_top;
-    __atomic uint32_t queue_bot;
+        RSCHED_DEBUG("Creating scheduler queue...");
 
-    pthread_mutex_t mtx;
-    pthread_cond_t cond;
+        rsched_queue_init(&sched->queue);
 
-    rsched_proc_fun r_fun;
-    void* user_ctx;
+        RSCHED_DEBUG("Creating %d workers...", workers);
 
-    pthread_t* worker_threads;
-    struct rsched_worker_info* worker_info;
-    uint32_t n_workers;
-
-    __atomic int32_t processed_tasks;
-};
-
-static void* rsched_worker(void* arg);
-static bool rsched_check_workers_state(rsched* sched, int state);
-static void rsched_set_workers_state(rsched* sched, int state);
-
-void rsched_create(rsched** psched, uint32_t workers)
-{
-    rsched* sched;
-    int ret = 0;
-    char tname[32];
-
-    *psched = (rsched*)calloc(1, sizeof(rsched));
-    sched = *psched;
-
-    atomic_store(&sched->cur_task, 0);
-
-    sched->queue_top = 0;
-    atomic_store(&sched->queue_bot, 0);
-
-
-    if((ret = pthread_cond_init(&sched->cond, NULL)))
-    {
-        LOG_ERROR("[pthread_cond_init]: %s", strerror(ret));
-        exit(EXIT_FAILURE);
-    }
-
-
-    if((ret = pthread_mutex_init(&sched->mtx, NULL)))
-    {
-        LOG_ERROR("[pthread_mutex_init]: %s", strerror(ret));
-        exit(EXIT_FAILURE);
-    }
-
-
-    sched->worker_threads = (pthread_t*)calloc(workers, sizeof(pthread_t));
-    sched->worker_info = (struct rsched_worker_info*)calloc(workers, sizeof(struct rsched_worker_info));
-    sched->n_workers = workers;
-    sched->r_fun = NULL;
-    sched->user_ctx = NULL;
-
-    atomic_store(&sched->processed_tasks, 0);
-
-    pthread_mutex_lock(&sched->mtx);
-    for(uint32_t i = 0; i < workers; ++i)
-    {
-        sched->worker_info[i].state = RC_WORKER_RUNNING;
-
-        if((ret = pthread_create(&sched->worker_threads[i], NULL, &rsched_worker, sched)))
+        for(i = 0; i < workers; ++i)
         {
-            LOG_ERROR("[pthread_create]: %s", strerror(ret));
-            exit(EXIT_FAILURE);
+                int ret = rsched_worker_init(&sched->worker[i],
+                                             i,
+                                             &sched->queue,
+                                             opts);
+
+                if(ret != MDB_SUCCESS)
+                        goto shutdown_ret_fail;
         }
 
+        RSCHED_DEBUG("Workers created. Synchronizing...");
 
-
-        snprintf(tname, 32, "worker%u", i);
-        if((ret = pthread_setname_np(sched->worker_threads[i], tname)))
+        if(rsched_wait_workers(sched) != MDB_SUCCESS)
         {
-            LOG_ERROR("[pthread_setname_np]: %s", strerror(ret));
-            exit(EXIT_FAILURE);
-        }
-    }
-
-    while (!rsched_check_workers_state(sched, RC_WORKER_SLEEP))
-    {
-        pthread_cond_wait(&sched->cond, &sched->mtx);
-    }
-
-    pthread_mutex_unlock(&sched->mtx);
-}
-
-void rsched_set_proc_fun(rsched* sched, rsched_proc_fun fun, void* user_ctx)
-{
-    sched->r_fun = fun;
-    sched->user_ctx = user_ctx;
-}
-
-void rsched_shutdown(rsched* sched)
-{
-    uint32_t i = 0;
-    for(; i < sched->n_workers; ++i)
-    {
-        pthread_cancel(sched->worker_threads[i]);
-    }
-}
-
-static int rsched_get_worker_id(rsched* sched, pthread_t p_tid)
-{
-    uint32_t i = 0;
-    for(; i < sched->n_workers; ++i)
-    {
-        if(sched->worker_threads[i] == p_tid)
-            return i;
-    }
-
-    return MDB_FAIL;
-
-}
-
-uint32_t rsched_get_workers_count(rsched* sched)
-{
-    return sched->n_workers;
-}
-
-static bool rsched_check_workers_state(rsched* sched, int state)
-{
-    uint32_t i = 0;
-    for(; i < sched->n_workers; ++i)
-    {
-        if(sched->worker_info[i].state != state)
-            return false;
-    }
-
-    return true;
-}
-
-static void rsched_set_workers_state(rsched* sched, int state)
-{
-    for(uint32_t i = 0; i < sched->n_workers; ++i)
-    {
-        sched->worker_info[i].state = state;
-    }
-}
-
-
-void rsched_requeue(rsched* sched)
-{
-    atomic_store(&sched->cur_task, 0);
-}
-
-enum
-{
-    RSCHED_QUEUE_RESIZE_DISCARD = 1,
-    RSCHED_QUEUE_RESIZE_EXTEND  = 1<<1,
-    RSCHED_QUEUE_RESIZE_ZERO    = 1<<2
-};
-
-static void rsched_queue_resize(rsched* sched, uint32_t queue_len, int flags)
-{
-    if(flags & RSCHED_QUEUE_RESIZE_DISCARD && !(flags & RSCHED_QUEUE_RESIZE_EXTEND))
-    {
-        free(sched->task_queue);
-
-        sched->task_queue = (rsched_task*) calloc(queue_len, sizeof(rsched_task));
-        sched->queue_len = queue_len;
-
-        atomic_store(&sched->cur_task, 0);
-
-        sched->queue_top = 0;
-    }
-    else if(flags & RSCHED_QUEUE_RESIZE_EXTEND && !(flags & RSCHED_QUEUE_RESIZE_DISCARD))
-    {
-        uint32_t qlen = sched->queue_len + queue_len;
-        sched->task_queue = (rsched_task*) realloc(sched->task_queue, qlen * sizeof(rsched_task));
-
-        if(flags & RSCHED_QUEUE_RESIZE_ZERO)
-        {
-            memset(sched->task_queue+sched->queue_len, 0, queue_len * sizeof(rsched_task));
+                LOG_ERROR("Failed to sync workers.");
+                goto shutdown_ret_fail;
         }
 
-        sched->queue_len = qlen;
+        RSCHED_DEBUG("Scheduler has been successfully created.");
 
-    }
-    else
-    {
-        LOG_ERROR("Unknown flags");
-    }
+        return MDB_SUCCESS;
+
+shutdown_ret_fail:
+        rsched_shutdown(sched);
+        *psched = NULL;
+
+        return MDB_FAIL;
 }
 
-
-void rsched_yield(rsched* sched, uint32_t caller)
+static
+int bind_thread_to_cpu(pthread_t tid, uint32_t cpu_id)
 {
-    pthread_mutex_lock(&sched->mtx);
+        cpu_set_t cpu;
+        int ret;
 
-    if(caller == RSCHED_ROOT)
-    {
-        if(!rsched_check_workers_state(sched, RC_WORKER_SLEEP))
+        CPU_ZERO(&cpu);
+
+        CPU_SET(cpu_id, &cpu);
+
+        ret = pthread_setaffinity_np(tid, sizeof(cpu), &cpu);
+        if(ret != 0)
         {
-            LOG_ERROR("[rsched_yield] Serious bug discovered! "
-                              "Main thread entered to the sleep state before all workers were freed! "
-                              "This can cause a fatal error or hang the program!");
+                LOG_WARN("Cannot set thread affinity: %s", strerror(ret));
+                return MDB_FAIL;
         }
 
-        rsched_set_workers_state(sched, RC_WORKER_PENDING_START);
-        pthread_cond_broadcast(&sched->cond);
+        return MDB_SUCCESS;
 
-        while (!rsched_check_workers_state(sched, RC_WORKER_SLEEP))
-        {
-            pthread_cond_wait(&sched->cond, &sched->mtx);
-        }
-
-    }
-    else if(caller == RSCHED_WORKER)
-    {
-        int this_worker = rsched_get_worker_id(sched, pthread_self());
-
-        sched->worker_info[this_worker].state = RC_WORKER_SLEEP;
-
-        if(rsched_check_workers_state(sched, RC_WORKER_SLEEP))
-            pthread_cond_broadcast(&sched->cond);
-
-        while (sched->worker_info[this_worker].state != RC_WORKER_PENDING_START)
-        {
-            pthread_cond_wait(&sched->cond, &sched->mtx);
-        }
-
-        sched->worker_info[this_worker].state = RC_WORKER_RUNNING;
-    }
-    else
-    {
-        LOG_ERROR("Unknown caller id: %u", caller);
-        exit(EXIT_FAILURE);
-    }
-
-    pthread_mutex_unlock(&sched->mtx);
 }
 
-void rsched_push(rsched* sched, uint32_t x0, uint32_t x1, uint32_t y0, uint32_t y1)
+int rsched_tune_thread_affinity(struct rsched* sched)
 {
-    rsched_task* t;
-    uint32_t ext_len;
+        uint32_t i;
+        bool errs = false;
 
-    if(sched->queue_top >= sched->queue_len)
-    {
-        ext_len = sched->queue_len / 4;
-        LOG_WARN("Detected attempt of out of range accessing to the queue, element {%i, %i, %i, %i}. Extending queue [%i]->[%i]\n",
-                x0, x1, y0, y1,
-                sched->queue_len, sched->queue_len + ext_len);
-
-        rsched_queue_resize(sched, ext_len, RSCHED_QUEUE_RESIZE_EXTEND | RSCHED_QUEUE_RESIZE_ZERO);
-    }
-
-    t = &sched->task_queue[sched->queue_top++];
-    t->x0 = x0;
-    t->x1 = x1;
-    t->y0 = y0;
-    t->y1 = y1;
-}
-
-
-static rsched_task* rsched_pop(rsched* sched)
-{
-    uint32_t cur = atomic_load(&sched->cur_task);
-
-    if(cur >= sched->queue_top)
-        return NULL;
-
-
-    while(!atomic_compare_exchange(&sched->cur_task, &cur, cur+1))
-    {
-        if(cur >= sched->queue_top)
-            return NULL;
-
-        ++cur;
-    }
-
-    return &sched->task_queue[cur];
-}
-
-uint32_t rsched_enqueued_tasks(rsched* sched)
-{
-    return sched->queue_top;
-}
-
-//static void rsched_print_summary(rsched* sched)
-//{
-//    uint32_t processed_tasks = atomic_load_explicit(&sched->processed_tasks, memory_order_acquire);
-//
-//    LOG_DEBUG("Processed tasks", "%u", processed_tasks);
-//}
-
-static void rsched_split_task(rsched* sched, uint32_t x0, uint32_t x1, uint32_t y0, uint32_t y1, struct block_size* grain)
-{
-    uint32_t xsz = x1 - x0 + 1;
-    uint32_t ysz = y1 - y0 + 1;
-
-    if(xsz > grain->x)
-    {
-        uint32_t nxm = xsz / 2;
-        uint32_t nx01 = x0 + (nxm - 1);
-        uint32_t nx10 = x0 + nxm;
-
-        rsched_split_task(sched, x0, nx01, y0, y1, grain);
-        rsched_split_task(sched, nx10, x1, y0, y1, grain);
-    }
-    else if(ysz > grain->y)
-    {
-        uint32_t nym = ysz / 2;
-        uint32_t ny01 = y0 + (nym - 1);
-        uint32_t ny10 = y0 + nym;
-
-        rsched_split_task(sched, x0, x1, y0, ny01, grain);
-        rsched_split_task(sched, x0, x1, ny10, y1, grain);
-
-    }
-    else
-    {
-        rsched_push(sched, x0, x1, y0, y1);
-    }
-}
-
-void rsched_create_tasks(rsched* sched, uint32_t width, uint32_t height, struct block_size* grain)
-{
-    uint32_t wxh = width * height;
-    uint32_t grain2 = grain->x * grain->y;
-    uint32_t qlen = wxh / grain2 + (wxh % grain2 != 0);
-
-    rsched_queue_resize(sched, qlen, RSCHED_QUEUE_RESIZE_DISCARD | RSCHED_QUEUE_RESIZE_ZERO);
-
-    rsched_split_task(sched, 0, width-1, 0, height-1, grain);
-}
-
-
-static void* rsched_worker(void* arg)
-{
-    rsched* sched = (rsched*)arg;
-
-    rsched_yield(sched, RSCHED_WORKER);
-
-    for (;;)
-    {
-        rsched_task* t = rsched_pop(sched);
-
-        if (likely(t))
-        {
-            if(unlikely(sched->r_fun == NULL))
-            {
-                LOG_ERROR("Process function is not set\n");
-                exit(EXIT_FAILURE);
-            }
-
-            sched->r_fun(t->x0, t->x1, t->y0, t->y1, sched->user_ctx);
-            atomic_fetch_add(&sched->processed_tasks, 1);
-        }
+        /* bind a host thread to the first cpu */
+        if(bind_thread_to_cpu(pthread_self(), 0) == MDB_SUCCESS)
+                LOG_VINFO(LOG_VERBOSE1, "Host thread bind to cpu 0");
         else
-        {
-            rsched_yield(sched, RSCHED_WORKER);
-        }
-    }
+                errs = true;
 
-    return NULL;
+
+        for(i = 0; i < sched->n_workers; ++i)
+        {
+                int ret = bind_thread_to_cpu(sched->worker[i].pthr_id, i + 1);
+                if(ret == MDB_SUCCESS)
+                        LOG_VINFO(LOG_VERBOSE1,
+                                  "Worker [%d] thread bind to cpu %d",
+                                  i, i + 1);
+                else
+                        errs = true;
+        }
+
+
+        if(errs)
+                LOG_WARN("Setting threads affinity was not successful. "
+                         "This may lead to performance issues "
+                         "or program may not work properly");
+
+
+        return MDB_SUCCESS;
+}
+
+static inline
+void update_workers_user_ctx(struct rsched* sched,
+                             rsched_user_fun fun, void* user_ctx)
+{
+        uint32_t i;
+        for(i = 0; i < sched->n_workers; ++i)
+        {
+                pthread_spin_lock(&sched->worker[i].lock);
+
+                sched->worker[i].user_fun = fun;
+                sched->worker[i].user_ctx = user_ctx;
+
+                pthread_spin_unlock(&sched->worker[i].lock);
+        }
+}
+
+void rsched_set_user_context(struct rsched* sched,
+                             rsched_user_fun fun, void* user_ctx)
+{
+        sched->user_fun = fun;
+        sched->user_ctx = user_ctx;
+
+        update_workers_user_ctx(sched, fun, user_ctx);
+}
+
+static
+void rsched_destroy_workers(struct rsched* sched)
+{
+        uint32_t i;
+        for(i = 0; i < sched->n_workers; ++i)
+        {
+                rsched_worker_destroy(&sched->worker[i]);
+        }
+}
+
+static
+void rsched_destroy_structure(struct rsched* sched)
+{
+        free(sched->worker);
+        free(sched);
+}
+
+void rsched_shutdown(struct rsched* sched)
+{
+        rsched_worker_destroy_stats(&sched->host_stats);
+
+        rsched_destroy_workers(sched);
+
+        rsched_queue_destroy(&sched->queue);
+
+        rsched_destroy_structure(sched);
+}
+
+uint32_t rsched_threads_count(struct rsched* sched)
+{
+        return sched->n_workers + 1;
+}
+
+void rsched_requeue(struct rsched* sched)
+{
+        RSCHED_DEBUG("Requeue'ing tasks...");
+
+        rsched_queue_requeue(&sched->queue);
+}
+
+static inline
+int rsched_wait_worker(struct rsched_worker* worker)
+{
+        int state;
+        while(1)
+        {
+                state = rsched_get_worker_state(worker);
+                switch(state)
+                {
+                case RS_ST_WAITING:
+                        return MDB_SUCCESS;
+
+                default:
+                        rsched_yield_cpu();
+                        break;
+
+                case RS_ST_DOWN:
+                        LOG_ERROR("Worker [%d] is down.", worker->id);
+                        return MDB_FAIL;
+                }
+        }
+}
+
+static inline
+int rsched_wait_workers(struct rsched* sched)
+{
+        uint32_t i;
+        int ret;
+        for(i = 0; i < sched->n_workers; ++i)
+        {
+                ret = rsched_wait_worker(&sched->worker[i]);
+                if(ret != MDB_SUCCESS)
+                        return ret;
+
+        }
+
+        return MDB_SUCCESS;
+}
+
+static inline
+void rsched_assert_workers_state(struct rsched* sched, int state)
+{
+        uint32_t i;
+        for(i = 0; i < sched->n_workers; ++i)
+        {
+                int st = rsched_get_worker_state(&sched->worker[i]);
+                if(st != state)
+                {
+                        LOG_WARN("Assertion failed! Worker [%d] state %d != %d",
+                                 i, st, state);
+                }
+        }
+}
+
+static inline
+void rsched_run_workers(struct rsched* sched)
+{
+        uint32_t i;
+
+        for(i = 0; i < sched->n_workers; ++i)
+        {
+                rsched_send_worker_sig(&sched->worker[i], RS_SIG_START);
+        }
+}
+
+int rsched_host_yield(struct rsched* sched)
+{
+        rsched_user_fun proc_fun;
+        void* user_ctx;
+        struct worker_stats* stats = &sched->host_stats;
+
+        RSCHED_DEBUG("Checking process function...");
+
+        user_ctx = sched->user_ctx;
+        proc_fun = sched->user_fun;
+        if(proc_fun == NULL)
+        {
+                LOG_ERROR("Host worker."
+                          " Process function is not set. Exiting...");
+
+                return MDB_FAIL;
+        }
+
+        RSCHED_DEBUG("Setting workers to run...");
+
+        rsched_run_workers(sched);
+
+        RSCHED_DEBUG("Beginning process loop...");
+
+        rsched_profile_start(&stats->profile.run);
+        for (;;)
+        {
+                struct rsched_task* t;
+
+                rsched_profile_start(&stats->profile.task);
+
+                t = rsched_queue_pop(&sched->queue);
+
+                if (t == NULL)
+                {
+                        rsched_profile_stop(&stats->profile.task);
+                        break;
+                }
+
+                rsched_profile_start(&stats->profile.payload);
+
+                proc_fun(t->x0, t->x1, t->y0, t->y1, user_ctx);
+
+                rsched_profile_stop(&stats->profile.payload);
+
+                ++stats->task_count;
+
+                rsched_profile_stop(&stats->profile.task);
+        }
+        rsched_profile_stop(&stats->profile.run);
+
+        RSCHED_DEBUG("Processing loop ended. Synchronizing workers...");
+
+        if(rsched_wait_workers(sched) != MDB_SUCCESS)
+        {
+                LOG_ERROR("Failed to sync workers.");
+                return MDB_FAIL;
+        }
+
+
+        if(IS_ENABLED(CONFIG_RSCHED_DEBUG))
+                rsched_assert_workers_state(sched, RS_ST_WAITING);
+
+        RSCHED_DEBUG("Returning control to the host...");
+
+        return MDB_SUCCESS;
+}
+
+void rsched_create_tasks(struct rsched* sched, uint32_t width, uint32_t height,
+                         struct block_size* grain)
+{
+        uint32_t wxh = width * height;
+        uint32_t grain2 = grain->x * grain->y;
+        uint32_t qlen = wxh / grain2 + (wxh % grain2 != 0);
+
+        rsched_queue_resize(&sched->queue,
+                            qlen,
+                            RS_QUE_DISCARD
+                            | RS_QUE_ZERO);
+
+        rsched_split_task(&sched->queue, 0, width-1, 0, height-1, grain);
 }

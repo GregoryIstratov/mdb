@@ -2,13 +2,20 @@
 
 #define UNUSED_PARAM(x) ((void)(x))
 
-# define likely(x)	__builtin_expect(!!(x), 1)
-# define unlikely(x)	__builtin_expect(!!(x), 0)
+#define MIN(a,b) ((a) < (b) ? (a) : (b))
+#define MAX(a,b) ((a) > (b) ? (a) : (b))
+
+#define likely(x)	__builtin_expect(!!(x), 1)
+#define unlikely(x)	__builtin_expect(!!(x), 0)
 
 #define __cold	__attribute__((__cold__))
 #define __hot	__attribute__((__hot__))
 
 #define __aligned(x) __attribute__((aligned(x)))
+
+/* Ideally the value should be set depending on the arch.
+ */
+#define __cache_aligned __aligned(64)
 
 #define return_if(cond, val) if(cond) return (val);
 

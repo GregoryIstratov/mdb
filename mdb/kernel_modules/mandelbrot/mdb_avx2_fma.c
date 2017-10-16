@@ -19,6 +19,26 @@ int mdb_kernel_cpu_features(void)
     return CPU_FEATURE_AVX2 | CPU_FEATURE_FMA;
 }
 
+
+static __always_inline void set_pixels(__m256 v_i, uint32_t x, uint32_t y, uint32_t bailout)
+{
+    __aligned(32) float pixels[8];
+    __m256 v_bailout;
+    __m256 bailout_mask;
+
+    v_bailout = _mm256_set1_ps(bailout);
+    bailout_mask = _mm256_cmp_ps(v_i, v_bailout, _CMP_NEQ_OQ);
+
+    v_i = _mm256_and_ps(v_i, bailout_mask);
+
+    v_i = _mm256_div_ps(v_i, v_bailout);
+
+    _mm256_store_ps(pixels, v_i);
+
+    surface_set_pixels(mdb.surf, x, y, 8, pixels);
+}
+
+__hot
 void mdb_kernel_process_block(uint32_t x0, uint32_t x1, uint32_t y0, uint32_t y1)
 {
     __m256 v_scale = _mm256_set1_ps(mdb.scale);
@@ -35,33 +55,22 @@ void mdb_kernel_process_block(uint32_t x0, uint32_t x1, uint32_t y0, uint32_t y1
     __m256 v_bound2 = _mm256_set1_ps(4);
     __m256 v_one = _mm256_set1_ps(1);
 
-    uint32_t y, x;
-
-    __m256 v_cy, v_cx;
-    __m256 v_zx, v_zy;
-
-    uint32_t i;
-    __m256 v_i;
-
-    __m256 v_zy2_cx, v_zx1, v_zy1, v_zxzy_cy;
-    __m256 v_mag2;
-    __m256 bound_mask;
-    int zero_mask;
-
-    __m256 add_mask;
-    __m256 v_bailout;
-    __m256 bailout_mask;
-
-    __aligned(32) float pixels[8];
-
+    uint32_t y;
     for (y = y0; y <= y1; ++y)
     {
+        __m256 v_cy, v_cx;
+        uint32_t x;
+
         v_cy = _mm256_set1_ps(y);
         v_cy = _mm256_fmadd_ps(v_cy, v_height_r, v_center);
         v_cy = _mm256_fmadd_ps(v_cy, v_scale, v_shift_y);
 
+
         for (x = x0; x < x1; x += 8)
         {
+            __m256 v_zx, v_zy;
+            __m256 v_i;
+            uint32_t i;
 
             v_cx = _mm256_set_ps(x + 7, x + 6, x + 5, x + 4,
                                         x + 3, x + 2, x + 1, x + 0);
@@ -79,6 +88,12 @@ void mdb_kernel_process_block(uint32_t x0, uint32_t x1, uint32_t y0, uint32_t y1
             v_i = _mm256_set1_ps(i);
             for (; i < bailout; ++i)
             {
+                __m256 v_zy2_cx, v_zx1, v_zy1, v_zxzy_cy;
+                __m256 v_mag2;
+                __m256 bound_mask;
+                __m256 add_mask;
+                int zero_mask;
+
                 //zx1 = zx0 * zx0 - zy0 * zy0 + cx
                 //zy1 = zx0 * zy0 + zx0 * zy0 + cy
                 //-------------------------------
@@ -118,16 +133,7 @@ void mdb_kernel_process_block(uint32_t x0, uint32_t x1, uint32_t y0, uint32_t y1
 
             }
 
-            v_bailout = _mm256_set1_ps(bailout);
-            bailout_mask = _mm256_cmp_ps(v_i, v_bailout, _CMP_NEQ_OQ);
-
-            v_i = _mm256_and_ps(v_i, bailout_mask);
-
-            v_i = _mm256_div_ps(v_i, v_bailout);
-
-            _mm256_store_ps(pixels, v_i);
-
-            surface_set_pixels(mdb.surf, x, y, 8, pixels);
+            set_pixels(v_i, x, y, bailout);
         }
     }
 }

@@ -2,11 +2,13 @@
 
 #include <string.h>
 #include <stdint.h>
+#include <time.h>
 #include <mdb/tools/compiler.h>
-#include <mdb/tools/log.h>
+#include <stdio.h>
 
-#define NANOSECONDS_IN_SECOND 1000000000
-#define NANOSECONDS_IN_MILLISECOND 1000000
+#define NANOSECONDS_IN_SECOND       UINT64_C(1000000000)
+#define NANOSECONDS_IN_MILLISECOND  UINT64_C(1000000)
+#define NANOSECONDS_IN_MICROSECOND  UINT64_C(1000)
 
 __always_inline static double ns_to_sec(uint64_t ns)
 {
@@ -36,10 +38,7 @@ __always_inline static double sample_timer(void)
 {
     struct timespec tm;
 
-    if(clock_gettime(CLOCK_MONOTONIC, &tm))
-    {
-        LOG_ERROR("Failed to take the time and switched to fallback");
-    }
+    clock_gettime(CLOCK_MONOTONIC, &tm);
 
     return timespec_get_total_sec(&tm);
 
@@ -71,18 +70,12 @@ __always_inline static void perf_timer_init(perf_timer* tm)
 
 __always_inline static void perf_timer_start(perf_timer* tm)
 {
-    if(clock_gettime(CLOCK_MONOTONIC, &tm->start))
-    {
-        LOG_WARN("Failed to take the time and switched to fallback");
-    }
+    clock_gettime(CLOCK_MONOTONIC, &tm->start);
 }
 
 __always_inline static void perf_timer_stop(perf_timer* tm)
 {
-    if(clock_gettime(CLOCK_MONOTONIC, &tm->end))
-    {
-        LOG_WARN("Failed to take the time and switched to fallback");
-    }
+    clock_gettime(CLOCK_MONOTONIC, &tm->end);
 }
 
 __always_inline static uint64_t perf_timer_diff_ns(const perf_timer* tm)
@@ -103,4 +96,27 @@ __always_inline static double perf_timer_diff_sec(const perf_timer* tm)
     double diff = total_end - total_start;
 
     return diff;
+}
+
+static inline void perf_format_time(uint64_t ns, char* buf, size_t sz)
+{
+    if(ns < 10 * NANOSECONDS_IN_MICROSECOND)
+    {
+        snprintf(buf, sz, "%04lu ns", ns);
+    }
+    else
+    if(ns < 10 * NANOSECONDS_IN_MILLISECOND)
+    {
+        snprintf(buf, sz, "%04lu mc", ns / NANOSECONDS_IN_MICROSECOND);
+    }
+    else
+    if(ns < 10 * NANOSECONDS_IN_SECOND)
+    {
+        snprintf(buf, sz, "%04lu ms", ns / NANOSECONDS_IN_MILLISECOND);
+    }
+    else
+    {
+        double d = (double)ns / NANOSECONDS_IN_SECOND;
+        snprintf(buf, sz, "%.2f sc", d);
+    }
 }

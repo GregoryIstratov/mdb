@@ -6,6 +6,15 @@
 # To enable option just set it ON to disable OFF      #
 # =====================================================
 
+#======================================================
+# Arg parser parameters                               #
+#======================================================
+
+# Enable debug information in arg parser
+# Note that arg parse doesn't use default logging system
+# It uses only stdout and strerr for output
+#
+set(CONFIG_ARG_PARSER_DEBUG Off)
 
 #======================================================
 # Logging parameters                                  #
@@ -30,13 +39,29 @@ set(CONFIG_LOG_PATH Off)
 set(CONFIG_LOG_MULTITHREADING On)
 
 #======================================================
+# Scheduler parameters                                #
+#======================================================
+
+# Enable scheduler debug output
+# This may lead to a huge performance impact and a massive verbose output.
+# Don't enable it unless you know what you're doing.
+# This option has an effect only in a debug build
+#
+set(CONFIG_RSCHED_DEBUG Off)
+
+# Enable scheduler profiling
+# This records various performance timers and shows statistics on exit
+#
+set(CONFIG_RSCHED_PROFILE On)
+
+#======================================================
 # Kernel parameters                                   #
 #======================================================
 
 # Turn on debugging in the kernel.
 # This may lead to a huge performance impact and a massive verbose output.
 # Don't enable it unless you know what you're doing.
-# This option has effect only in debug build
+# This option has an effect only in a debug build
 #
 set(CONFIG_MDB_KERNEL_DEBUG Off)
 

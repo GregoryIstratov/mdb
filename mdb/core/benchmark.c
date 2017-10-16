@@ -6,15 +6,16 @@
 #include <mdb/kernel/mdb_kernel.h>
 #include <mdb/sched/rsched.h>
 
-#include <mdb/tools/atomic_x86.h>
+#include <mdb/tools/atomic.h>
 #include <limits.h>
+#include <mdb/tools/log.h>
 
 
 struct _benchmark
 {
     int width, height;
     mdb_kernel* kernel;
-    rsched* sched;
+        struct rsched* sched;
     uint32_t runs;
     __atomic uint64_t total_block_time;
     __atomic uint64_t min_block_time;
@@ -59,7 +60,17 @@ static void benchmark_proc_fun(uint32_t x0, uint32_t x1, uint32_t y0, uint32_t y
     atomic_fetch_add(&bench->block_count, 1);
 }
 
-void benchmark_create(benchmark** pbench, uint32_t runs, mdb_kernel* kernel, rsched* sched)
+static void benchmark_proc_dummy_fun(uint32_t x0, uint32_t x1, uint32_t y0, uint32_t y1, void* ctx)
+{
+    UNUSED_PARAM(x0);
+    UNUSED_PARAM(x1);
+    UNUSED_PARAM(y0);
+    UNUSED_PARAM(y1);
+    UNUSED_PARAM(ctx);
+}
+
+void benchmark_create(benchmark** pbench, uint32_t runs, mdb_kernel* kernel,
+                      struct rsched* sched)
 {
     benchmark* bench;
 
@@ -78,7 +89,7 @@ void benchmark_create(benchmark** pbench, uint32_t runs, mdb_kernel* kernel, rsc
 
     perf_timer_init(&bench->tm_kernel);
 
-    rsched_set_proc_fun(bench->sched, &benchmark_proc_fun, bench);
+    rsched_set_user_context(bench->sched, &benchmark_proc_fun, bench);
 }
 
 void benchmark_destroy(benchmark* bench)
@@ -95,7 +106,7 @@ static void benchmark_run_kernel(benchmark* bench)
 
     while(run < runs)
     {
-        rsched_yield(bench->sched, RSCHED_ROOT);
+        rsched_host_yield(bench->sched);
         rsched_requeue(bench->sched);
 
         ++run;
@@ -111,7 +122,7 @@ void benchmark_run(benchmark* bench)
 
 void benchmark_print_summary(benchmark* bench)
 {
-    uint32_t threads = rsched_get_workers_count(bench->sched);
+    uint32_t threads = rsched_threads_count(bench->sched);
 
     double block_ms = ns_to_ms(atomic_load(&bench->total_block_time) / threads);
     double min_block_ms = ns_to_ms(atomic_load(&bench->min_block_time));

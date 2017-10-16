@@ -12,12 +12,13 @@ configure_file(mdb/config/config.h.in ${CMAKE_CURRENT_SOURCE_DIR}/mdb/config/con
 set(CMAKE_VERBOSE_MAKEFILE Off)
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu99 -D_GNU_SOURCE -fPIC -fvisibility=hidden -march=native -Wall -Wextra -Wno-unused-function -Werror=declaration-after-statement")
-set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DDEBUG -ggdb3 -O0")
+set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DDEBUG -g -Og")
 #set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -fsanitize=leak")
 #set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -fsanitize=undefined")
 #set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -fsanitize=address")
+#set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -fsanitize=thread")
 set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O3 -DNDEBUG -s -flto -ffast-math -funroll-loops -ftree-vectorize")
-
+set(CMAKE_C_FLAGS_RELWITHDEBINFO  "${CMAKE_C_FLAGS_RELWITHDEBINFO} -O3 -DNDEBUG -g -flto -ffast-math -funroll-loops -ftree-vectorize")
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
@@ -31,7 +32,7 @@ set(SOURCE_FILES
         mdb/tools/compiler.h
         mdb/tools/log.c
         mdb/tools/log.h
-        mdb/tools/atomic_x86.h
+        mdb/tools/atomic.h
         mdb/tools/timer.h
         mdb/tools/image/image_hdr.c
         mdb/tools/image/image_hdr.h
@@ -53,15 +54,18 @@ set(SOURCE_FILES
         #mdb/tools/cpu_feature_cpuid.c
         #mdb/tools/cpu_feature_cpuid.h
 
-        )
+        mdb/tools/hist.c mdb/tools/hist.h mdb/sched/rsched_queue.c mdb/sched/rsched_queue.h mdb/sched/rsched_worker.c mdb/sched/rsched_worker.h mdb/sched/rsched_common.h mdb/sched/rsched_profile.c mdb/sched/rsched_profile.h)
 
 
 if(CONFIG_OGL_RENDER)
 
-    if ("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
+    if (${CMAKE_BUILD_TYPE} STREQUAL Debug)
         include_directories(mdb/render/glad_debug/include/)
         list(APPEND SOURCE_FILES mdb/render/glad_debug/src/glad.c)
     elseif(${CMAKE_BUILD_TYPE} STREQUAL Release)
+        include_directories(mdb/render/glad_release/include/)
+        list(APPEND SOURCE_FILES mdb/render/glad_release/src/glad.c)
+    elseif(${CMAKE_BUILD_TYPE} STREQUAL RelWithDebInfo)
         include_directories(mdb/render/glad_release/include/)
         list(APPEND SOURCE_FILES mdb/render/glad_release/src/glad.c)
     endif ()
@@ -81,7 +85,7 @@ if(CONFIG_OGL_RENDER)
 endif()
 
 add_executable(mdb ${SOURCE_FILES})
-target_link_libraries(mdb pthread dl)
+target_link_libraries(mdb pthread dl m)
 
 if(CONFIG_OGL_RENDER)
     target_link_libraries(mdb glfw)
