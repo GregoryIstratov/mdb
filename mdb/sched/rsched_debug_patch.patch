@@ -1,0 +1,284 @@
+Index: rsched_worker.h
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- rsched_worker.h	(date 1508175362000)
++++ rsched_worker.h	(revision )
+@@ -157,6 +157,10 @@
+ {
+         int sig;
+ 
++        RSCHED_DEBUG("Worker [%d] yield. "
++                     "Setting worker state to WAITING...",
++                     worker->id);
++
+         rsched_worker_set_state(worker, RS_ST_WAITING);
+ 
+         sig = rsched_worker_sig_lock_receive(worker);
+Index: rsched.c
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- rsched.c	(date 1508175362000)
++++ rsched.c	(revision )
+@@ -53,11 +53,17 @@
+         struct rsched* sched;
+         uint32_t workers = opts->threads - 1;
+ 
++        RSCHED_DEBUG("Creating scheduler...");
++
+         rsched_init_structure(psched, opts);
+         sched = *psched;
+ 
++        RSCHED_DEBUG("Creating scheduler queue...");
++
+         rsched_queue_init(&sched->queue);
+ 
++        RSCHED_DEBUG("Creating %d workers...", workers);
++
+         for(i = 0; i < workers; ++i)
+         {
+                 int ret = rsched_worker_init(&sched->worker[i],
+@@ -69,12 +75,16 @@
+                         goto shutdown_ret_fail;
+         }
+ 
++        RSCHED_DEBUG("Workers created. Synchronizing...");
++
+         if(rsched_wait_workers(sched) != MDB_SUCCESS)
+         {
+                 LOG_ERROR("Failed to sync workers.");
+                 goto shutdown_ret_fail;
+         }
+ 
++        RSCHED_DEBUG("Scheduler has been successfully created.");
++
+         return MDB_SUCCESS;
+ 
+ shutdown_ret_fail:
+@@ -198,6 +208,8 @@
+ 
+ void rsched_requeue(struct rsched* sched)
+ {
++        RSCHED_DEBUG("Requeue'ing tasks...");
++
+         rsched_queue_requeue(&sched->queue);
+ }
+ 
+@@ -240,6 +252,21 @@
+         return MDB_SUCCESS;
+ }
+ 
++static inline
++void rsched_assert_workers_state(struct rsched* sched, int state)
++{
++        uint32_t i;
++        for(i = 0; i < sched->n_workers; ++i)
++        {
++                int st = rsched_get_worker_state(&sched->worker[i]);
++                if(st != state)
++                {
++                        LOG_WARN("Assertion failed! Worker [%d] state %d != %d",
++                                 i, st, state);
++                }
++        }
++}
++
+ static inline
+ void rsched_run_workers(struct rsched* sched)
+ {
+@@ -257,6 +284,8 @@
+         void* user_ctx;
+         struct worker_stats* stats = &sched->host_stats;
+ 
++        RSCHED_DEBUG("Checking process function...");
++
+         user_ctx = sched->user_ctx;
+         proc_fun = sched->user_fun;
+         if(proc_fun == NULL)
+@@ -267,8 +296,12 @@
+                 return MDB_FAIL;
+         }
+ 
++        RSCHED_DEBUG("Setting workers to run...");
++
+         rsched_run_workers(sched);
+ 
++        RSCHED_DEBUG("Beginning process loop...");
++
+         rsched_profile_start(&stats->profile.run);
+         for (;;)
+         {
+@@ -294,7 +327,9 @@
+ 
+                 rsched_profile_stop(&stats->profile.task);
+         }
+-        rsched_profile_stop(&stats->profile.run);;
++        rsched_profile_stop(&stats->profile.run);
++
++        RSCHED_DEBUG("Processing loop ended. Synchronizing workers...");
+ 
+         if(rsched_wait_workers(sched) != MDB_SUCCESS)
+         {
+@@ -302,6 +337,12 @@
+                 return MDB_FAIL;
+         }
+ 
++
++        if(IS_ENABLED(CONFIG_RSCHED_DEBUG))
++                rsched_assert_workers_state(sched, RS_ST_WAITING);
++
++        RSCHED_DEBUG("Returning control to the host...");
++
+         return MDB_SUCCESS;
+ }
+ 
+Index: rsched_queue.c
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- rsched_queue.c	(date 1508175362000)
++++ rsched_queue.c	(revision )
+@@ -70,6 +70,9 @@
+ {
+         struct rsched_task* t;
+ 
++        RSCHED_DEBUG("Queue push: { %04d, %04d, %04d, %04d }",
++                     x0, x1, y0, y1);
++
+         if(queue->length >= queue->capacity)
+         {
+                 uint32_t ext_n = queue->capacity / 4;
+Index: rsched_worker.c
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- rsched_worker.c	(date 1508175362000)
++++ rsched_worker.c	(revision )
+@@ -25,16 +25,22 @@
+ {
+         int state = rsched_get_worker_state(worker);
+ 
++        RSCHED_DEBUG("Worker [%d] state = %d", worker->id, state);
++
+         if(state != RS_ST_DOWN)
+         {
+                 rsched_send_worker_sig(worker, RS_SIG_QUIT);
+         }
+ 
++        RSCHED_DEBUG("Joining worker [%d] thread...", worker->id);
++
+         pthread_join(worker->pthr_id, NULL);
+ 
+         pthread_spin_destroy(&worker->lock);
+ 
+         rsched_worker_destroy_stats(&worker->stats);
++
++        RSCHED_DEBUG("Worker [%d] has been destroyed.", worker->id);
+ }
+ 
+ int rsched_worker_init(struct rsched_worker* worker, uint32_t id,
+@@ -55,6 +61,8 @@
+ 
+         pthread_spin_init(&worker->lock, 0);
+ 
++        RSCHED_DEBUG("Creating worker[%d] thread...", id);
++
+         ret = pthread_create(&worker->pthr_id,
+                              NULL,
+                              &rsched_worker,
+@@ -147,6 +155,8 @@
+ 
+         int sig;
+ 
++        RSCHED_DEBUG("Worker [%d] initialization state. Yielding...", worker_id);
++
+         goto worker_yield;
+ 
+ worker_loop:
+@@ -161,6 +171,8 @@
+ sig_handle:
+         if(likely(sig == RS_SIG_START))
+         {
++                RSCHED_DEBUG("Worker [%d] SIG_START.", worker_id);
++
+                 pthread_spin_lock(&worker->lock);
+                 user_ctx = worker->user_ctx;
+                 proc_fun = worker->user_fun;
+@@ -176,18 +188,31 @@
+                         goto worker_exit;
+                 }
+ 
++                RSCHED_DEBUG("Worker [%d] Setting state to RUNNING...",
++                             worker_id);
++
+                 rsched_worker_set_state(worker, RS_ST_RUNNING);
++
++                RSCHED_DEBUG("Worker [%d] Unlocking signals...", worker_id);
++
+                 rsched_worker_sig_unlock(worker);
+ 
+                 goto worker_loop;
+         }
+         else if(sig == RS_SIG_QUIT)
+         {
++                RSCHED_DEBUG("Worker [%d] SIG_QUIT.", worker_id);
++
+                 goto worker_exit;
+         }
+         else if(sig == RS_SIG_INT)
+         {
++                RSCHED_DEBUG("Worker [%d] SIG_INT.", worker_id);
++
++                RSCHED_DEBUG("Worker [%d] Unlocking signals...", worker_id);
++
+                 rsched_worker_sig_unlock(worker);
++
+                 goto worker_yield;
+         }
+         else
+@@ -202,9 +227,15 @@
+ worker_exit:
+         LOG_VINFO(LOG_VERBOSE1, "Worker [%d] exiting...", worker_id);
+ 
++        RSCHED_DEBUG("Worker [%d] Setting state to DOWN...", worker_id);
++
+         rsched_worker_set_state(worker, RS_ST_DOWN);
+ 
++        RSCHED_DEBUG("Worker [%d] Unlocking signals...", worker_id);
++
+         rsched_worker_sig_unlock(worker);
+ 
++        RSCHED_DEBUG("Worker [%d] exit thread.", worker_id);
++
+         return NULL;
+ }
+Index: rsched_common.h
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- rsched_common.h	(date 1508175362000)
++++ rsched_common.h	(revision )
+@@ -6,11 +6,14 @@
+ 
+ #include "rsched_profile.h"
+ 
+-#if defined(CONFIG_RSCHED_DEBUG)
+-#error Rsched debug system has moved to a separate patch file, you must apply \
+-it before enabling
++#if defined(NDEBUG) && defined(CONFIG_RSCHED_DEBUG)
++#undef CONFIG_RSCHED_DEBUG
+ #endif
+ 
++#define RSCHED_DEBUG(fmt, ...) if(IS_ENABLED(CONFIG_RSCHED_DEBUG)) \
++                                     LOG_DEBUG(fmt, ##__VA_ARGS__)
++
++
+ typedef void(* rsched_user_fun)(uint32_t x0, uint32_t x1,
+                                 uint32_t y0, uint32_t y1,
+                                 void* ctx);
