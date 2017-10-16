@@ -9,10 +9,12 @@
         __atomic_load_n(PTR, __ATOMIC_ACQUIRE)
 
 #define atomic_compare_exchange(PTR, VAL, DES) \
-        __atomic_compare_exchange_n(PTR, VAL, DES, 1, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE)
+        __atomic_compare_exchange_n(PTR, VAL, DES, 1, \
+                                    __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE)
 
 #define atomic_compare_exchange_strong(PTR, VAL, DES) \
-        __atomic_compare_exchange_n(PTR, VAL, DES, 0, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE)
+        __atomic_compare_exchange_n(PTR, VAL, DES, 0, \
+                                    __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE)
 
 
 #define atomic_fetch_add(PTR, VAL) \

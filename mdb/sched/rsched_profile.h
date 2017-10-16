@@ -33,7 +33,7 @@ struct profile_stat
         uint64_t max;
         uint64_t min;
         struct perf_hist hist;
-        perf_timer tm;
+        struct perf_timer tm;
 };
 
 struct rsched_stats

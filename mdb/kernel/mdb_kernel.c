@@ -5,17 +5,15 @@
 
 #include <mdb/tools/compiler.h>
 #include <mdb/tools/log.h>
-
-#include <mdb/kernel/bits/mdb_kernel.h>
 #include <mdb/tools/error_codes.h>
 
-#include <immintrin.h>
 #include <mdb/tools/cpu_features.h>
+#include <stdio.h>
 
 
-static int mdb_kernel_init(mdb_kernel* mdb);
+static int mdb_kernel_init(struct mdb_kernel* mdb);
 
-static int mdb_kernel_load(mdb_kernel* mdb, const char* kernel_name)
+static int mdb_kernel_load(struct mdb_kernel* mdb, const char* kernel_name)
 {
 #define MDB_KRN_RETURN_IF_ERR()  \
     if ((error = dlerror()) != NULL) \
@@ -35,10 +33,7 @@ static int mdb_kernel_load(mdb_kernel* mdb, const char* kernel_name)
         return MDB_FAIL;
     }
 
-    memset(filename, 0, 1024);
-    strcpy(filename, "./modules/kernels/");
-    strcat(filename, kernel_name);
-    strcat(filename, ".so");
+    snprintf(filename, 1024, "./modules/kernels/%s.so", kernel_name);
 
     LOG_SAY("Loading kernel: %s ...", filename);
 
@@ -52,35 +47,35 @@ static int mdb_kernel_load(mdb_kernel* mdb, const char* kernel_name)
     /* Clear any existing error */
     dlerror();
 
-    mdb->init_fun = (mdb_kernel_init_t)dlsym(handle, "mdb_kernel_init");
+    mdb->init_fun = dlsym(handle, "mdb_kernel_init");
 
     MDB_KRN_RETURN_IF_ERR();
 
-    mdb->shutdown_fun = (mdb_kernel_shutdown_t)dlsym(handle, "mdb_kernel_shutdown");
+    mdb->shutdown_fun = dlsym(handle, "mdb_kernel_shutdown");
 
     MDB_KRN_RETURN_IF_ERR();
 
-    mdb->cpu_features_fun = (mdb_kernel_cpu_features_t)dlsym(handle, "mdb_kernel_cpu_features");
+    mdb->cpu_features_fun = dlsym(handle, "mdb_kernel_cpu_features");
 
     MDB_KRN_RETURN_IF_ERR();
 
-    mdb->metadata_query_fun = (mdb_kernel_metadata_query_t)dlsym(handle, "mdb_kernel_metadata_query");
+    mdb->metadata_query_fun = dlsym(handle, "mdb_kernel_metadata_query");
 
     MDB_KRN_RETURN_IF_ERR();
 
-    mdb->event_handler_fun = (mdb_kernel_event_handler_t)dlsym(handle, "mdb_kernel_event_handler");
+    mdb->event_handler_fun = dlsym(handle, "mdb_kernel_event_handler");
 
     MDB_KRN_RETURN_IF_ERR();
 
-    mdb->block_fun = (mdb_kernel_process_block_t)dlsym(handle, "mdb_kernel_process_block");
+    mdb->block_fun = dlsym(handle, "mdb_kernel_process_block");
 
     MDB_KRN_RETURN_IF_ERR();
 
-    mdb->set_size_fun = (mdb_kernel_set_size_t)dlsym(handle, "mdb_kernel_set_size");
+    mdb->set_size_fun = dlsym(handle, "mdb_kernel_set_size");
 
     MDB_KRN_RETURN_IF_ERR();
 
-    mdb->set_surface_fun = (mdb_kernel_set_surface_t)dlsym(handle, "mdb_kernel_set_surface");
+    mdb->set_surface_fun = dlsym(handle, "mdb_kernel_set_surface");
 
     MDB_KRN_RETURN_IF_ERR();
 
@@ -95,7 +90,7 @@ static int mdb_kernel_load(mdb_kernel* mdb, const char* kernel_name)
     return MDB_SUCCESS;
 }
 
-static void mdb_kernel_log_info(mdb_kernel* mdb)
+static void mdb_kernel_log_info(struct mdb_kernel* mdb)
 {
     char buff[256];
     memset(buff, 0, 256);
@@ -114,7 +109,7 @@ static void mdb_kernel_log_info(mdb_kernel* mdb)
     LOG_SAY("---------------------------------");
 }
 
-static int mdb_kernel_check_cpu_features(mdb_kernel* mdb)
+static int mdb_kernel_check_cpu_features(struct mdb_kernel* mdb)
 {
     char fet_buf[256];
     int mask;
@@ -144,11 +139,11 @@ static int mdb_kernel_check_cpu_features(mdb_kernel* mdb)
 
 }
 
-int mdb_kernel_create(mdb_kernel** pmdb, const char* kernel_name)
+int mdb_kernel_create(struct mdb_kernel** pmdb, const char* kernel_name)
 {
-    mdb_kernel* mdb;
+        struct mdb_kernel* mdb;
 
-    *pmdb = calloc(1, sizeof(mdb_kernel));
+    *pmdb = calloc(1, sizeof(**pmdb));
     mdb = *pmdb;
 
     if(mdb_kernel_load(mdb, kernel_name) != MDB_SUCCESS)
@@ -179,7 +174,7 @@ error_exit:
 }
 
 
-static int mdb_kernel_init(mdb_kernel* mdb)
+static int mdb_kernel_init(struct mdb_kernel* mdb)
 {
     int res;
     if((res = mdb->init_fun()) != MDB_SUCCESS)
@@ -190,7 +185,7 @@ static int mdb_kernel_init(mdb_kernel* mdb)
     return MDB_SUCCESS;
 }
 
-void mdb_kernel_destroy(mdb_kernel* mdb)
+void mdb_kernel_destroy(struct mdb_kernel* mdb)
 {
     if(mdb->state >= MDB_KRN_INITED)
         mdb->shutdown_fun();
@@ -201,22 +196,23 @@ void mdb_kernel_destroy(mdb_kernel* mdb)
     free(mdb);
 }
 
-int mdb_kernel_event(mdb_kernel* mdb, int event_type, void* event)
+int mdb_kernel_event(struct mdb_kernel* mdb, int event_type, void* event)
 {
     return mdb->event_handler_fun(event_type, event);
 }
 
-int mdb_kernel_set_surface(mdb_kernel* mdb, surface* surf)
+int mdb_kernel_set_surface(struct mdb_kernel* mdb, struct surface* surf)
 {
     return mdb->set_surface_fun(surf);
 }
 
-int mdb_kernel_set_size(mdb_kernel* mdb, uint32_t width, uint32_t height)
+int mdb_kernel_set_size(struct mdb_kernel* mdb, uint32_t width, uint32_t height)
 {
     return mdb->set_size_fun(width, height);
 }
 
-void mdb_kernel_process_block(mdb_kernel* mdb, uint32_t x0, uint32_t x1, uint32_t y0, uint32_t y1)
+void mdb_kernel_process_block(struct mdb_kernel* mdb, uint32_t x0, uint32_t x1,
+                              uint32_t y0, uint32_t y1)
 {
     mdb->block_fun(x0, x1, y0, y1);
 }

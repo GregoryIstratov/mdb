@@ -34,22 +34,21 @@ set(SOURCE_FILES
         mdb/tools/log.h
         mdb/tools/atomic.h
         mdb/tools/timer.h
-        mdb/tools/image/image_hdr.c
-        mdb/tools/image/image_hdr.h
-        mdb/core/benchmark.c
-        mdb/core/benchmark.h
-        mdb/core/render.c
-        mdb/core/render.h
+        mdb/tools/image_hdr.c
+        mdb/tools/image_hdr.h
+        mdb/app/benchmark.c
+        mdb/app/benchmark.h
+        mdb/app/render.c
+        mdb/app/render.h
         mdb/kernel/mdb_kernel.c
         mdb/kernel/mdb_kernel.h
-        mdb/kernel/bits/mdb_kernel.h
-        mdb/kernel/bits/mdb_kernel_meta.h
+        mdb/kernel/mdb_kernel_meta.h
         mdb/tools/cpu_features.c
         mdb/tools/cpu_features.h
         mdb/surface/surface.c
         mdb/surface/surface.h
         mdb/tools/error_codes.h
-        mdb/kernel/bits/mdb_kernel_event.h
+        mdb/kernel/mdb_kernel_event.h
 
         #mdb/tools/cpu_feature_cpuid.c
         #mdb/tools/cpu_feature_cpuid.h
@@ -73,14 +72,14 @@ if(CONFIG_OGL_RENDER)
     list(APPEND SOURCE_FILES
             mdb/render/ogl_render.c
             mdb/render/ogl_render.h
-            mdb/render/bits/ogl_shader.c
-            mdb/render/bits/ogl_shader.h
-            mdb/render/bits/ogl_pixel_buffer.c
-            mdb/render/bits/ogl_pixel_buffer.h
-            mdb/render/bits/ogl_squad.c
-            mdb/render/bits/ogl_squad.h
-            mdb/render/bits/ogl_buffer_sync.c
-            mdb/render/bits/ogl_buffer_sync.h
+            mdb/render/ogl_shader.c
+            mdb/render/ogl_shader.h
+            mdb/render/ogl_pixel_buffer.c
+            mdb/render/ogl_pixel_buffer.h
+            mdb/render/ogl_squad.c
+            mdb/render/ogl_squad.h
+            mdb/render/ogl_buffer_sync.c
+            mdb/render/ogl_buffer_sync.h
             )
 endif()
 

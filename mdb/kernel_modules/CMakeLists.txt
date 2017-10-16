@@ -24,7 +24,7 @@ if(CONFIG_MDB_AVX_FMA_ASM_KERNEL)
     add_custom_target(compile_asm_kernel ALL
             COMMAND /usr/bin/nasm ${NASM_EXTRA_FLAGS} -f elf64
             -o ${NASM_BUILD_DIR}/mdb_asm_kernel.o
-            mandelbrot/asm/mdb_asm_kernel.asm
+            mandelbrot/mdb_asm_kernel.asm
             COMMENT "[${CMAKE_BUILD_TYPE}] Compiling mdb_asm_kernel.asm to ${NASM_BUILD_DIR}/mdb_asm_kernel.o ..."
             VERBATIM
             )
@@ -65,8 +65,8 @@ if(${CONFIG_MDB_AVX2_FMA_KERNEL})
 
     add_kernel(mdb_avx2_fma
             mandelbrot/mdb_avx2_fma.c
-            mandelbrot/bits/mdb_kernel_common.c
-            mandelbrot/bits/mdb_kernel_common.h
+            mandelbrot/mdb_kernel_common.c
+            mandelbrot/mdb_kernel_common.h
             )
     target_compile_options(mdb_avx2_fma PRIVATE -mavx2 -mfma)
 
@@ -76,8 +76,8 @@ if(${CONFIG_MDB_AVX2_KERNEL})
 
     add_kernel(mdb_avx2
             mandelbrot/mdb_avx2.c
-            mandelbrot/bits/mdb_kernel_common.c
-            mandelbrot/bits/mdb_kernel_common.h
+            mandelbrot/mdb_kernel_common.c
+            mandelbrot/mdb_kernel_common.h
             )
     target_compile_options(mdb_avx2 PRIVATE -mavx2)
 endif()
@@ -86,17 +86,15 @@ if(${CONFIG_MDB_NATIVE_KERNEL})
 
     add_kernel(mdb_native
             mandelbrot/mdb_native.c
-            mandelbrot/bits/mdb_kernel_common.c
-            mandelbrot/bits/mdb_kernel_common.h
-            mandelbrot/bits/block_fun_common.h
+            mandelbrot/mdb_kernel_common.c
+            mandelbrot/mdb_kernel_common.h
             )
     target_compile_options(mdb_native PRIVATE -march=native)
 endif()
 
 add_kernel(mdb_generic
         mandelbrot/mdb_generic.c
-        mandelbrot/bits/mdb_kernel_common.c
-        mandelbrot/bits/mdb_kernel_common.h
-        mandelbrot/bits/block_fun_common.h
+        mandelbrot/mdb_kernel_common.c
+        mandelbrot/mdb_kernel_common.h
         )
 

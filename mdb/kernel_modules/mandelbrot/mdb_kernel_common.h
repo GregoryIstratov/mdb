@@ -8,16 +8,16 @@
 
 struct mdb_t
 {
-    uint32_t bailout;
-    uint32_t width;
-    uint32_t height;
-    float shift_x;
-    float shift_y;
-    float scale;
-    surface* surf;
-    float width_r;
-    float height_r;
-    float aspect_ratio;
+        uint32_t bailout;
+        uint32_t width;
+        uint32_t height;
+        float shift_x;
+        float shift_y;
+        float scale;
+        struct surface* surf;
+        float width_r;
+        float height_r;
+        float aspect_ratio;
 };
 
 struct mdb_t mdb;

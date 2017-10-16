@@ -6,12 +6,14 @@
 #include "timer.h"
 #include "log.h"
 
-static inline size_t HIST_BOUNDL(const struct perf_hist* hist)
+static inline
+size_t HIST_BOUNDL(const struct perf_hist* hist)
 {
         return hist->size;
 }
 
-static inline size_t HIST_BOUNDR(const struct perf_hist* hist)
+static inline
+size_t HIST_BOUNDR(const struct perf_hist* hist)
 {
         return hist->size + 1;
 }

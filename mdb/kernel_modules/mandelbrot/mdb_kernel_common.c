@@ -187,7 +187,7 @@ int mdb_kernel_set_size(uint32_t width, uint32_t height)
 }
 
 
-int mdb_kernel_set_surface(surface* surf)
+int mdb_kernel_set_surface(struct surface* surf)
 {
     mdb.surf = surf;
 

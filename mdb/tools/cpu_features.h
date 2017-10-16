@@ -16,11 +16,11 @@ enum
     CPU_FEATURE_FMA     = 1<<9
 };
 
-/* Check for platform available cpu features
- * if everything is supported return 0
- * otherwise returns bitwise mask of unsupported features.
+/* Check a platform for available cpu features
+ * if everything is supported returns 0
+ * otherwise returns a bitwise mask of unsupported features.
  */
 int cpu_check_features(int mask);
 
-/* Convert bitmask of cpu features to comma separated string */
+/* Convert a bitmask of the CPU features to a comma separated string */
 int cpu_features_to_str(int mask, char* buff, size_t buff_sz);
