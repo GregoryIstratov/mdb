@@ -18,13 +18,13 @@
 #include <mdb/tools/error_codes.h>
 
 
-static const char* render_control_keys =
-        "Arrows  - Move Up/Down/Left/Right\n"
-                "[1]/[2] - Scale up/down\n"
-                "[3]/[4] - Iterations/bailout increase/decrease\n"
-                "[5]/[6] - Exposure increase/decrease\n"
-                "[F1-F4] - Change position\n"
-;
+static const char* control_keys_doc[] = {
+        "Arrows  - Move Up/Down/Left/Right",
+        "[1]/[2] - Scale up/down",
+        "[3]/[4] - Iterations/bailout increase/decrease",
+        "[5]/[6] - Exposure increase/decrease",
+        "[F1-F4] - Change position"
+};
 
 
 struct render_ctx
@@ -36,6 +36,18 @@ struct render_ctx
         uint32_t height;
         struct block_size grain;
 };
+
+static inline
+void print_control_keys()
+{
+        int sz = ARRAY_SIZE(control_keys_doc);
+        int i;
+
+        LOG_SAY("Render control keys:");
+
+        for(i = 0; i < sz; ++i)
+                LOG_SAY(control_keys_doc[i]);
+}
 
 static
 void render_key_callback(void* context, int key, int scancode,
@@ -132,8 +144,9 @@ int render_run(struct rsched* sched, struct mdb_kernel* kernel,
 
         rsched_set_user_context(sched, &render_kernel_proc_fun, &ctx);
 
-        LOG_SAY("Starting render mode...\nControl keys:\n%s\n",
-                render_control_keys);
+        LOG_SAY("Starting render mode...");
+
+        print_control_keys();
 
 #if defined(CONFIG_OGL_RENDER)
         run_ogl_render(&ctx, color_enabled);

@@ -83,7 +83,9 @@ enum
         KEY_BENCH_RUNS,
         KEY_COLORS,
         KEY_RSCHED,
-        KEY_KRN_LIST
+        KEY_KRN_LIST,
+        KEY_BENCHMARK,
+        KEY_RENDER
 };
 
 #define OPTION_EX(name, key, arg, flags, doc, group) \
@@ -134,6 +136,11 @@ OPTION("mode", KEY_MODE, "MODE",
                        "render - Real-time screen render, requires OpenGL\t"
                        "default: oneshot")
 
+OPTION("benchmark", KEY_BENCHMARK, "RUNS", "Run benchmark mode with "
+                                   "N iterations.")
+
+OPTION("render", KEY_RENDER, 0, "Run render mode")
+
 OPTION("rsched", KEY_RSCHED, "OPTIONS", rsched_opt_doc)
 
 OPTION("colors", KEY_COLORS, "on|off",
@@ -148,7 +155,9 @@ OPTION("benchmark-runs", KEY_BENCH_RUNS,  "N"   ,
        "Number of iterations in benchmark | default: 100")
 
 OPTION_EX(0, 0, 0, 0, "Extra params:", GR_EXTRA)
+
 OPTION("verbose", 'v', 0, "Produce verbose output")
+
 OPTION("quiet", 'q', 0, "Don't produce any output")
 
 OPTION_EX(0, 0, 0, 0, 0, 0)
@@ -730,12 +739,21 @@ case KEY_COLORS:
         arguments->shader_colors = parse_on_off("colors", arg);
         break;
 
+case KEY_BENCHMARK:
+        arguments->mode = MODE_BENCHMARK;
+        arguments->benchmark_runs = parse_int("benchmark", arg, 1, INT_MAX);
+        break;
+
+case KEY_RENDER:
+        arguments->mode = MODE_RENDER;
+        break;
+
 case 'q':
 case 's':
         arguments->silent = 1;
         break;
 case 'v':
-        arguments->verbose = parse_int("verbose", arg, 0, 5);
+        arguments->verbose = 1;
         break;
 case 'o':
         arguments->output_file = arg;
@@ -767,7 +785,7 @@ static const struct argp argp = {
 
 void args_parse(int argc, char** argv, struct arguments* arguments)
 {
-        memset(arguments, 0, sizeof(struct arguments));
+        memset(arguments, 0, sizeof(*arguments));
 
         /* Default values. */
         arguments->width         = 1024;
@@ -781,6 +799,9 @@ void args_parse(int argc, char** argv, struct arguments* arguments)
         arguments->output_file   = "mandelbrot.hdr";
         arguments->benchmark_runs= 100;
         arguments->shader_colors = 1;
+#if !defined(NDEBUG)
+        arguments->verbose       = 2;
+#endif
 
         /* Parse our arguments; every option seen by parse_opt will
            be reflected in arguments. */

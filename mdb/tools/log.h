@@ -1,7 +1,9 @@
 #pragma once
 
+#include <stdbool.h>
 #include <mdb/config/config.h>
 #include "compiler.h"
+
 
 enum
 {
@@ -24,69 +26,51 @@ enum
         LOG_VERBOSE2    = 2
 };
 
-#ifndef NDEBUG
 #define LOG_ERROR(fmt, ...) \
-        _log(__FILE__, __LINE__, __func__, LOG_ERROR, (fmt),  ##__VA_ARGS__)
+        _log(__FILE__, __LINE__, __func__, LOG_ERROR, true,(fmt), ##__VA_ARGS__)
 
 #define LOG_WARN(fmt, ...) \
-        _log(__FILE__, __LINE__, __func__, LOG_WARN, (fmt) ,##__VA_ARGS__)
-
-#define LOG_DEBUG(fmt, ...) \
-        _log(__FILE__, __LINE__, __func__, LOG_DEBUG, (fmt), ##__VA_ARGS__)
-
-#define LOG_INFO(fmt, ...) \
-        _log(__FILE__, __LINE__, __func__, LOG_INFO, (fmt), ##__VA_ARGS__)
-
-#define LOG_VINFO(verb, fmt, ...) \
-        _log_verbose(__FILE__, __LINE__, __func__, \
-                     LOG_INFO, (verb), (fmt), ##__VA_ARGS__)
-
-#define LOG_TRACE(fmt, ...) \
-        _log(__FILE__, __LINE__, __func__, LOG_TRACE, (fmt), ##__VA_ARGS__)
-
-#define LOG_ASSERT(fmt, ...) \
-        _log(__FILE__, __LINE__, __func__, LOG_ASSERT, (fmt), ##__VA_ARGS__)
-#else
-#define LOG_ERROR(fmt, ...) \
-        _log(__FILE__, __LINE__, __func__, LOG_ERROR, (fmt),  ##__VA_ARGS__)
-
-#define LOG_WARN(fmt, ...) \
-        _log(__FILE__, __LINE__, __func__, LOG_WARN, (fmt) ,##__VA_ARGS__)
-
-#define LOG_DEBUG(fmt, ...)
-
-#define LOG_INFO(fmt, ...) \
-        (_log(__FILE__, __LINE__, __func__, LOG_INFO, (fmt), ##__VA_ARGS__))
+        _log(__FILE__, __LINE__, __func__, LOG_WARN, true, (fmt), ##__VA_ARGS__)
 
 #define LOG_VINFO(verb, fmt, ...) \
         _log_verbose(__FILE__, __LINE__, __func__,\
-                     LOG_INFO, (verb), (fmt), ##__VA_ARGS__)
+                     LOG_INFO, (verb), true, (fmt), ##__VA_ARGS__)
 
+#ifdef NDEBUG
+#define LOG_DEBUG(fmt, ...)
 #define LOG_TRACE(fmt, ...)
+#else
+#define LOG_DEBUG(fmt, ...) \
+        _log(__FILE__, __LINE__, __func__, LOG_DEBUG, true,(fmt), ##__VA_ARGS__)
 
-#define LOG_ASSERT(fmt, ...)
+
+#define LOG_TRACE(fmt, ...) \
+        _log(__FILE__, __LINE__, __func__, LOG_TRACE, true,(fmt), ##__VA_ARGS__)
 #endif
 
-#define LOG_SAY(fmt, ...) _log_say((fmt), ##__VA_ARGS__)
-#define PARAM_INFO(label, fmt, ...) _log_param((label), (fmt), ##__VA_ARGS__)
+#define LOG_SAY(fmt, ...) _log_say(true, (fmt), ##__VA_ARGS__)
+#define PARAM_INFO(label, fmt, ...) \
+        _log_param(true, (label), (fmt), ##__VA_ARGS__)
 
 
 void log_init(int loglvl, int _verb_lvl, const char* filename);
 
 void log_shutdown(void);
 
+__export_symbol
 void _log(const char* file, int line, const char* fun,
-          int lvl, const char* fmt, ...)
-__attribute__((format(printf, 5, 6)));
-
-void _log_verbose(const char* file, int line, const char* fun,
-                  int lvl, int verbose, const char* fmt, ...)
+          int lvl, bool host, const char* fmt, ...)
 __attribute__((format(printf, 6, 7)));
 
 __export_symbol
-void _log_say(const char* fmt, ...)
-__attribute__((format(printf, 1, 2)));
+void _log_verbose(const char* file, int line, const char* fun,
+                  int lvl, int verbose, bool host, const char* fmt, ...)
+__attribute__((format(printf, 7, 8)));
 
 __export_symbol
-void _log_param(const char* label, const char* fmt, ...)
+void _log_say(bool host, const char* fmt, ...)
 __attribute__((format(printf, 2, 3)));
+
+__export_symbol
+void _log_param(bool host, const char* label, const char* fmt, ...)
+__attribute__((format(printf, 3, 4)));

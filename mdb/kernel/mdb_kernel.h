@@ -1,6 +1,6 @@
 #pragma once
 
-/* Kernel Management.
+/* Kernel Loader Management.
  *
  * A kernel is a main driver for computing a fractal.
  *
@@ -24,6 +24,9 @@
 #include <mdb/kernel/mdb_kernel_meta.h>
 #include <mdb/surface/surface.h>
 
+/* TODO kernel load parameters support
+ *
+ */
 
 typedef int (*mdb_kernel_init_t)(void);
 

@@ -3,11 +3,33 @@
 #include <mdb/sched/rsched.h>
 #include <mdb/kernel/mdb_kernel.h>
 
-typedef struct _benchmark benchmark;
+struct benchmark
+{
+        struct mdb_kernel* kernel;
+        struct rsched* sched;
 
-void benchmark_create(benchmark** pbench, uint32_t runs,
+        int width, height;
+
+        uint32_t runs;
+        double total_exec_time;
+
+        __cache_aligned
+        __atomic
+        uint64_t total_block_time;
+
+        __atomic
+        uint64_t min_block_time;
+
+        __atomic
+        uint64_t max_block_time;
+
+        __atomic
+        uint64_t block_count;
+};
+
+void benchmark_create(struct benchmark** pbench, uint32_t runs,
                       struct  mdb_kernel* kernel,
                       struct rsched* sched);
-void benchmark_destroy(benchmark* bench);
-void benchmark_run(benchmark* bench);
-void benchmark_print_summary(benchmark* bench);
+void benchmark_destroy(struct benchmark* bench);
+void benchmark_run(struct benchmark* bench);
+void benchmark_print_summary(struct benchmark* bench);

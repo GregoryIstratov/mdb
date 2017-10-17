@@ -190,7 +190,7 @@ void ogl_render_create(ogl_render** _rend, const char* win_title,
                 exit(EXIT_FAILURE);
         }
 
-        LOG_INFO("OpenGL %s, GLSL %s",
+        LOG_VINFO(LOG_VERBOSE1, "OpenGL %s, GLSL %s",
                  glGetString(GL_VERSION),
                  glGetString(GL_SHADING_LANGUAGE_VERSION));
 

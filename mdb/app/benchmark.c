@@ -11,27 +11,12 @@
 #include <mdb/tools/log.h>
 
 
-struct _benchmark
-{
-        int width, height;
-        struct mdb_kernel* kernel;
-        struct rsched* sched;
-        uint32_t runs;
-        __atomic uint64_t total_block_time;
-        __atomic uint64_t min_block_time;
-        __atomic uint64_t max_block_time;
-        __atomic uint64_t block_count;
-        struct perf_timer tm_kernel;
-
-};
-
 static
 void benchmark_proc_fun(uint32_t x0, uint32_t x1, uint32_t y0,
                                uint32_t y1, void* ctx)
 {
         struct perf_timer tm_block;
-
-        benchmark* bench = (benchmark*)ctx;
+        struct benchmark* bench = ctx;
 
         uint64_t elapsed_time, min_time, max_time;
 
@@ -60,8 +45,8 @@ void benchmark_proc_fun(uint32_t x0, uint32_t x1, uint32_t y0,
                         break;
         }
 
-        atomic_fetch_add(&bench->total_block_time, elapsed_time);
-        atomic_fetch_add(&bench->block_count, 1);
+        atomic_fetch_add_relaxed(&bench->total_block_time, elapsed_time);
+        atomic_fetch_add_relaxed(&bench->block_count, 1);
 }
 
 static
@@ -75,13 +60,13 @@ void benchmark_proc_dummy_fun(uint32_t x0, uint32_t x1, uint32_t y0,
         UNUSED_PARAM(ctx);
 }
 
-void benchmark_create(benchmark** pbench, uint32_t runs,
+void benchmark_create(struct benchmark** pbench, uint32_t runs,
                       struct mdb_kernel* kernel,
                       struct rsched* sched)
 {
-        benchmark* bench;
+        struct benchmark* bench;
 
-        *pbench = (benchmark*)calloc(1, sizeof(benchmark));
+        *pbench = calloc(1, sizeof(**pbench));
         bench = *pbench;
 
         bench->kernel = kernel;
@@ -97,18 +82,19 @@ void benchmark_create(benchmark** pbench, uint32_t runs,
         rsched_set_user_context(bench->sched, &benchmark_proc_fun, bench);
 }
 
-void benchmark_destroy(benchmark* bench)
+void benchmark_destroy(struct benchmark* bench)
 {
         free(bench);
 }
 
 static
-void benchmark_run_kernel(benchmark* bench)
+void benchmark_run_kernel(struct benchmark* bench)
 {
+        struct perf_timer tm_kernel;
         uint32_t runs = bench->runs;
         uint32_t run = 0;
 
-        perf_timer_start(&bench->tm_kernel);
+        perf_timer_start(&tm_kernel);
 
         while(run < runs)
         {
@@ -118,15 +104,16 @@ void benchmark_run_kernel(benchmark* bench)
                 ++run;
         }
 
-        perf_timer_stop(&bench->tm_kernel);
+        perf_timer_stop(&tm_kernel);
+        bench->total_exec_time = perf_timer_diff_sec(&tm_kernel);
 }
 
-void benchmark_run(benchmark* bench)
+void benchmark_run(struct benchmark* bench)
 {
         benchmark_run_kernel(bench);
 }
 
-void benchmark_print_summary(benchmark* bench)
+void benchmark_print_summary(struct benchmark* bench)
 {
         uint32_t threads = rsched_threads_count(bench->sched);
 
@@ -135,14 +122,14 @@ void benchmark_print_summary(benchmark* bench)
         double max_block_ms = ns_to_ms(atomic_load(&bench->max_block_time));
 
         uint64_t block_count = atomic_load(&bench->block_count);
-        double total_exec_time = perf_timer_diff_sec(&bench->tm_kernel);
 
         PARAM_INFO("Total blocks", "%lu", block_count);
         PARAM_INFO("Avg block time", "%f ms", (block_ms / block_count));
         PARAM_INFO("Min block time", "%f ms", min_block_ms);
         PARAM_INFO("Max block time", "%f ms", max_block_ms);
         PARAM_INFO("Total block time", "%f sec", (block_ms / 1000.0));
-        PARAM_INFO("Total execution time", "%f sec", total_exec_time);
+        PARAM_INFO("Total execution time", "%f sec", bench->total_exec_time);
         PARAM_INFO("Total runs", "%i", bench->runs);
-        PARAM_INFO("Avg FPS", "%f", ((double)bench->runs / total_exec_time));
+        PARAM_INFO("Avg FPS", "%f",
+                   ((double)bench->runs / bench->total_exec_time));
 }

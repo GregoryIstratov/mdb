@@ -20,6 +20,11 @@ set(CONFIG_ARG_PARSER_DEBUG Off)
 # Logging parameters                                  #
 #======================================================
 
+# Enable colored messages by adding special codes
+# works only in supported terminals
+#
+set(CONFIG_LOG_COLOR On)
+
 # Show time of a log record
 set(CONFIG_LOG_TIME On)
 
@@ -29,11 +34,14 @@ set(CONFIG_LOG_DATE On)
 # Show thread ID where logging record is coming from"
 set(CONFIG_LOG_THREAD On)
 
+# Show a function where is message from
+set(CONFIG_LOG_FUNC On)
+
 # Show a full source file path and a line number
 # where is a log record coming from
 # Useful when debugging
 #
-set(CONFIG_LOG_PATH Off)
+set(CONFIG_LOG_PATH On)
 
 # If enabled protect logging functions with a mutex
 set(CONFIG_LOG_MULTITHREADING On)

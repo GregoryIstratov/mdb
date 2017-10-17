@@ -11,8 +11,6 @@
 #include "log.h"
 #include "compiler.h"
 
-/* FIXME optional coloring */
-
 #define LOG_RED   "\x1B[31m"
 #define LOG_GRN   "\x1B[32m"
 #define LOG_YEL   "\x1B[33m"
@@ -141,7 +139,8 @@ void _log_append_tid(FILE* sink)
 }
 
 static inline
-void __log(const char* file, int line, const char* fun, int lvl, const char* fmt, va_list args)
+void __log(const char* file, int line, const char* fun, int lvl, bool host,
+           const char* fmt, va_list args)
 {
         if (lvl > loglevel)
                 return;
@@ -149,8 +148,9 @@ void __log(const char* file, int line, const char* fun, int lvl, const char* fmt
         if(IS_ENABLED(CONFIG_LOG_MULTITHREADING))
                 pthread_mutex_lock(&log_mtx);
 
-        /* Set terminal color */
-        fprintf(log_sink, "%s", log_color(lvl));
+
+        if(IS_ENABLED(CONFIG_LOG_COLOR))
+                fprintf(log_sink, "%s", log_color(lvl));
 
         if(IS_ENABLED(CONFIG_LOG_TIME) || IS_ENABLED(CONFIG_LOG_DATE))
                 _log_append_datetime(log_sink);
@@ -158,14 +158,18 @@ void __log(const char* file, int line, const char* fun, int lvl, const char* fmt
         if(IS_ENABLED(CONFIG_LOG_THREAD))
                 _log_append_tid(log_sink);
 
-        fprintf(log_sink, "[%s][%s]: ", loglevel_s(lvl), fun);
+        fprintf(log_sink, host ? "[HOST]" : "[KERN]");
+        fprintf(log_sink, "[%s]", loglevel_s(lvl));
 
+        if(IS_ENABLED(CONFIG_LOG_FUNC))
+                fprintf(log_sink, "[%s]: ", fun);
+        else
+                fprintf(log_sink, ": ");
 
         vfprintf(log_sink, fmt, args);
 
-
-        /* restore default terminal color */
-        fprintf(log_sink, "%s", LOG_RESET);
+        if(IS_ENABLED(CONFIG_LOG_COLOR))
+                fprintf(log_sink, "%s", LOG_RESET);
 
         if(IS_ENABLED(CONFIG_LOG_PATH))
                 fprintf(log_sink, " - %s:%i", file, line);
@@ -179,38 +183,52 @@ void __log(const char* file, int line, const char* fun, int lvl, const char* fmt
 }
 
 void _log(const char* file, int line, const char* fun,
-          int lvl, const char* fmt, ...)
+          int lvl, bool host, const char* fmt, ...)
 {
         va_list args;
         va_start(args, fmt);
-        __log(file, line, fun, lvl, fmt, args);
+        __log(file, line, fun, lvl, host, fmt, args);
         va_end(args);
 }
 
 void _log_verbose(const char* file, int line, const char* fun,
-                  int lvl, int verbose, const char* fmt, ...)
+                  int lvl, int verbose, bool host, const char* fmt, ...)
 {
         va_list args;
 
-        if(verbose < verb_lvl)
+        if(verb_lvl < verbose)
                 return;
 
         va_start(args, fmt);
-        __log(file, line, fun, lvl, fmt, args);
+        __log(file, line, fun, lvl, host, fmt, args);
         va_end(args);
 
 }
 
-void _log_say(const char* fmt, ...)
+static inline
+void __log_user_info(bool host, const char* label,
+                     const char* fmt, va_list args)
 {
-        va_list args;
 
         if(IS_ENABLED(CONFIG_LOG_MULTITHREADING))
                 pthread_mutex_lock(&log_mtx);
 
-        va_start(args, fmt);
+        if(IS_ENABLED(CONFIG_LOG_COLOR))
+                fprintf(log_sink, "%s", log_color(LOG_INFO));
+
+        if(IS_ENABLED(CONFIG_LOG_TIME) || IS_ENABLED(CONFIG_LOG_DATE))
+                _log_append_datetime(log_sink);
+
+        fprintf(log_sink, host ? "[HOST]" : "[KERN]");
+        fprintf(log_sink, "[%s]: ", loglevel_s(LOG_INFO));
+
+        if(IS_ENABLED(CONFIG_LOG_COLOR))
+                fprintf(log_sink, "%s", LOG_RESET);
+
+        if(label)
+                fprintf(log_sink, "%-20s: ", label);
+
         vfprintf(log_sink, fmt, args);
-        va_end(args);
 
         fprintf(log_sink, "\n");
         fflush(log_sink);
@@ -219,24 +237,20 @@ void _log_say(const char* fmt, ...)
                 pthread_mutex_unlock(&log_mtx);
 }
 
+void _log_say(bool host, const char* fmt, ...)
+{
+        va_list args;
+        va_start(args, fmt);
+        __log_user_info(host, NULL, fmt, args);
+        va_end(args);
+}
 
-void _log_param(const char* label, const char* fmt, ...)
+
+void _log_param(bool host, const char* label, const char* fmt, ...)
 {
         va_list args;
 
-        if(IS_ENABLED(CONFIG_LOG_MULTITHREADING))
-                pthread_mutex_lock(&log_mtx);
-
-
-        fprintf(log_sink, "%-20s: ", label);
-
         va_start(args, fmt);
-        vfprintf(log_sink, fmt, args);
+        __log_user_info(host, label, fmt, args);
         va_end(args);
-
-        fprintf(log_sink, "\n");
-        fflush(log_sink);
-
-        if(IS_ENABLED(CONFIG_LOG_MULTITHREADING))
-                pthread_mutex_unlock(&log_mtx);
 }

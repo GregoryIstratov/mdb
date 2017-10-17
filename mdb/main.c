@@ -40,7 +40,7 @@ uint32_t get_nthreads(void)
         int nproc = get_nprocs_conf();
         int nproc_avail = get_nprocs();
 
-        LOG_INFO("This system has %d processors configured "
+        LOG_VINFO(LOG_VERBOSE1, "This system has %d processors configured "
                  "and %d processors available.",
                  nproc, nproc_avail);
 
@@ -76,7 +76,7 @@ int run_benchmark_mode(struct mdb_kernel* kernel,
                        struct rsched* sched, struct arguments* args)
 {
         struct surface* surf;
-        benchmark* bench;
+        struct benchmark* bench;
         uint32_t runs;
         int ret;
 
@@ -247,25 +247,25 @@ int main(int argc, char** argv)
 
         switch(args.mode)
         {
-                case MODE_BENCHMARK:
-                case MODE_ONESHOT:
-                        if(run_benchmark_mode(kernel, sched, &args) != MDB_SUCCESS)
-                        {
-                                exit_failure = true;
-                                goto shutdown;
-                        }
-                        break;
-                case MODE_RENDER:
-                        if(run_render_mode(kernel, sched, &args) != MDB_SUCCESS)
-                        {
-                                exit_failure = true;
-                                goto shutdown;
-                        }
-                        break;
-                default:
-                        LOG_ERROR("Unknown run mode %i", args.mode);
+        case MODE_BENCHMARK:
+        case MODE_ONESHOT:
+                if(run_benchmark_mode(kernel, sched, &args) != MDB_SUCCESS)
+                {
                         exit_failure = true;
                         goto shutdown;
+                }
+                break;
+        case MODE_RENDER:
+                if(run_render_mode(kernel, sched, &args) != MDB_SUCCESS)
+                {
+                        exit_failure = true;
+                        goto shutdown;
+                }
+                break;
+        default:
+                LOG_ERROR("Unknown run mode %i", args.mode);
+                exit_failure = true;
+                goto shutdown;
         }
 
 

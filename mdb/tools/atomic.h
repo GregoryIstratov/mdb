@@ -20,6 +20,9 @@
 #define atomic_fetch_add(PTR, VAL) \
         __atomic_fetch_add(PTR, VAL, __ATOMIC_ACQ_REL)
 
+#define atomic_fetch_add_relaxed(PTR, VAL) \
+        __atomic_fetch_add(PTR, VAL, __ATOMIC_RELAXED)
+
 
 #define atomic_test_and_set(PTR) \
         __atomic_test_and_set(PTR, __ATOMIC_ACQ_REL)

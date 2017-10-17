@@ -14,33 +14,41 @@
 #undef LOG_ERROR
 #undef LOG_WARN
 #undef LOG_DEBUG
-#undef LOG_INFO
 #undef LOG_TRACE
-#undef LOG_ASSERT
-
 #undef LOG_SAY
 #undef PARAM_INFO
+#undef LOG_VINFO
 
-#ifndef NDEBUG
 #define KLOG_ERROR(fmt, ...) \
-        _log(__FILE__, __LINE__, __func__, LOG_ERROR, (fmt),  ##__VA_ARGS__)
-#define KLOG_WARN(fmt, ...) \
-        _log(__FILE__, __LINE__, __func__, LOG_WARN, (fmt) ,##__VA_ARGS__)
-#define KLOG_DEBUG(fmt, ...) \
-        _log(__FILE__, __LINE__, __func__, LOG_DEBUG, (fmt), ##__VA_ARGS__)
-#define KLOG_INFO(fmt, ...) \
-        _log(__FILE__, __LINE__, __func__, LOG_INFO, (fmt), ##__VA_ARGS__)
-#define KLOG_TRACE(fmt, ...) \
-        _log(__FILE__, __LINE__, __func__, LOG_TRACE, (fmt), ##__VA_ARGS__)
-#else
+        _log(__FILE__, __LINE__, __func__, LOG_ERROR, false,(fmt), ##__VA_ARGS__)
 
+#define KLOG_WARN(fmt, ...) \
+        _log(__FILE__, __LINE__, __func__, LOG_WARN, false, (fmt), ##__VA_ARGS__)
+
+#define KLOG_VINFO(verb, fmt, ...) \
+        _log_verbose(__FILE__, __LINE__, __func__,\
+                     LOG_INFO, (verb), false, (fmt), ##__VA_ARGS__)
+
+#ifdef NDEBUG
+#define KLOG_DEBUG(fmt, ...)
+#define KLOG_TRACE(fmt, ...)
+#else
+#define KLOG_DEBUG(fmt, ...) \
+        _log(__FILE__, __LINE__, __func__, LOG_DEBUG, false,(fmt), ##__VA_ARGS__)
+
+
+#define KLOG_TRACE(fmt, ...) \
+        _log(__FILE__, __LINE__, __func__, LOG_TRACE, false,(fmt), ##__VA_ARGS__)
 #endif
 
-#define KPARAM_INFO(label, fmt, ...) _log_param((label), (fmt), ##__VA_ARGS__)
+#define KLOG_SAY(fmt, ...) _log_say(false, (fmt), ##__VA_ARGS__)
+#define KPARAM_INFO(label, fmt, ...) \
+        _log_param(false, (label), (fmt), ##__VA_ARGS__)
 
 __hot
 __export_symbol
-void mdb_kernel_process_block(uint32_t x0, uint32_t x1, uint32_t y0, uint32_t y1);
+void mdb_kernel_process_block(uint32_t x0, uint32_t x1,
+                              uint32_t y0, uint32_t y1);
 __export_symbol
 int mdb_kernel_set_surface(struct surface* surf);
 __export_symbol

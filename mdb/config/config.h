@@ -23,6 +23,11 @@
  * Logging parameters
  * -------------------------------------------------*/
 
+/* Enable colored messages by adding special codes
+ * works only in supported terminals
+ */
+#define CONFIG_LOG_COLOR 1
+
 /* Show time of a log record */
 #define CONFIG_LOG_TIME 1
 
@@ -32,10 +37,13 @@
 /* Show thread ID where logging record is coming from */
 #define CONFIG_LOG_THREAD 1
 
+/* Show a function where is message from */
+#define CONFIG_LOG_FUNC 1
+
 /* Show a full source file path and a line number
  * where is a log record coming from
  * Useful when debugging */
-/* #undef CONFIG_LOG_PATH */
+#define CONFIG_LOG_PATH 1
 
 /* If enabled protect logging functions with a mutex */
 #define CONFIG_LOG_MULTITHREADING 1

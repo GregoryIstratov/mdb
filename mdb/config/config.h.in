@@ -22,6 +22,11 @@
  * Logging parameters
  * -------------------------------------------------*/
 
+/* Enable colored messages by adding special codes
+ * works only in supported terminals
+ */
+#cmakedefine CONFIG_LOG_COLOR 1
+
 /* Show time of a log record */
 #cmakedefine CONFIG_LOG_TIME 1
 
@@ -30,6 +35,9 @@
 
 /* Show thread ID where logging record is coming from */
 #cmakedefine CONFIG_LOG_THREAD 1
+
+/* Show a function where is message from */
+#cmakedefine CONFIG_LOG_FUNC 1
 
 /* Show a full source file path and a line number
  * where is a log record coming from
