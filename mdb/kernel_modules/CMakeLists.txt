@@ -12,19 +12,19 @@ if(CONFIG_MDB_AVX_FMA_ASM_KERNEL)
 
         set(NASM_EXTRA_FLAGS "-gdwarf")
         set(KERNEL_LINK_EXTRA_FLAGS "")
-        set(NASM_BUILD_DIR "mandelbrot/asm/bin/debug")
+        set(NASM_BUILD_DIR "${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles")
     elseif(${CMAKE_BUILD_TYPE} STREQUAL Release)
         message("Detected build type - ${CMAKE_BUILD_TYPE}")
         set(NASM_EXTRA_FLAGS "-Ox")
         set(KERNEL_LINK_EXTRA_FLAGS "-s")
-        set(NASM_BUILD_DIR "mandelbrot/asm/bin/release")
+        set(NASM_BUILD_DIR "${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles")
     endif ()
 
 
     add_custom_target(compile_asm_kernel ALL
             COMMAND /usr/bin/nasm ${NASM_EXTRA_FLAGS} -f elf64
             -o ${NASM_BUILD_DIR}/mdb_asm_kernel.o
-            mandelbrot/mdb_asm_kernel.asm
+            ${CMAKE_CURRENT_SOURCE_DIR}/mandelbrot/mdb_asm_kernel.asm
             COMMENT "[${CMAKE_BUILD_TYPE}] Compiling mdb_asm_kernel.asm to ${NASM_BUILD_DIR}/mdb_asm_kernel.o ..."
             VERBATIM
             )

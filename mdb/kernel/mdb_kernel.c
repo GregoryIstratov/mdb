@@ -163,8 +163,6 @@ int mdb_kernel_create(struct mdb_kernel** pmdb, const char* kernel_name)
         goto error_exit;
     }
 
-    mdb_kernel_set_size(mdb, 1024, 1024);
-
     return MDB_SUCCESS;
 
 error_exit:

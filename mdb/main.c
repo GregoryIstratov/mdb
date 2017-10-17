@@ -139,7 +139,9 @@ int run_render_mode(struct mdb_kernel* kernel, struct rsched* sched,
                 return ret;
         }
 
+        mdb_kernel_set_size(kernel, args->width, args->height);
         mdb_kernel_set_surface(kernel, surf);
+
 
         ret = render_run(sched, kernel, surf, args->width, args->height,
                          args->shader_colors? true : false);

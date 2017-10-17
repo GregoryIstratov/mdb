@@ -60,7 +60,7 @@ set(CONFIG_RSCHED_DEBUG Off)
 # Enable scheduler profiling
 # This records various performance timers and shows statistics on exit
 #
-set(CONFIG_RSCHED_PROFILE On)
+set(CONFIG_RSCHED_PROFILE Off)
 
 #======================================================
 # Kernel parameters                                   #
@@ -106,7 +106,7 @@ set(CONFIG_MDB_NATIVE_KERNEL On)
 # This kernel requires NASM compiller available in /usr/bin/nasm
 # and CPU with AVX2,FMA support.
 #
-set(CONFIG_MDB_AVX_FMA_ASM_KERNEL Off)
+set(CONFIG_MDB_AVX_FMA_ASM_KERNEL On)
 
 #======================================================
 # Render parameters                                   #

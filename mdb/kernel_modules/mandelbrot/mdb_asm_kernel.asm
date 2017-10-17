@@ -194,22 +194,22 @@ align 32
     v_bound2_ps:        times 8 dd 4.0
 
 section .data
-    width:              dd 0 ;1024
-    height:             dd 0 ;1024
+    width:              dd 0
+    height:             dd 0
     ;wxh:                dq 1024*1024
     surface_ptr:        dq 0
-    output_sz:          dd 0 ;1024*1024*4
-    output_stride:      dd 0 ;1024*4
+    output_sz:          dd 0
+    output_stride:      dd 0
 
-    scale_ss:           dd 0 ;0.00188964
-    shift_x_ss:         dd 0 ;-1.347385054652062
-    shift_y_ss:         dd 0 ;0.063483549665202
+    scale_ss:           dd 0.00188964
+    shift_x_ss:         dd -1.347385054652062
+    shift_y_ss:         dd -0.063483549665202
 
     bailout_si:         dd 256
 
-    width_r_ss:         dd 0 ;0.0009765625 ; 1/1024
-    height_r_ss:        dd 0 ;0.0009765625 ; 1/1024
-    aspect_ss:          dd 0 ;1.0
+    width_r_ss:         dd 0
+    height_r_ss:        dd 0
+    aspect_ss:          dd 0
 align 32
     v_transpose_x_ps:   times 8 dd 0
     v_transpose_y_ps:   times 8 dd 0
@@ -248,21 +248,12 @@ section .text
     ; rsi = height
     global mdb_kernel_set_size:function
 
-    ; xmm0 - scale
-    global mdb_kernel_set_scale:function
-
-    ; xmm0 - shift_x
-    ; xmm1 - shift_y
-    global mdb_kernel_set_shift:function
-
-    ; edi - bailout
-    global mdb_kernel_set_bailout:function
-
     ; rdi - pointer to f32 buffer
     global mdb_kernel_set_surface:function
 
-    ;void(void)
-    global mdb_kernel_submit_changes:function
+    ; rdi - type
+    ; rsi - pointer to event
+    global mdb_kernel_event_handler:function
 
 ; old metadata query version
 %if 0
@@ -426,12 +417,6 @@ mdb_kernel_cpu_features:
     mov eax,1<<8 | 1<<9
     ret
 
-mdb_kernel_init:
-    ret
-
-mdb_kernel_shutdown:
-    ret
-
 mdb_kernel_submit_changes:
     ;(height_r * cy + center) * scale + shift_y
     ;cy * height_r * scale + center * scale + shift_y
@@ -504,6 +489,33 @@ mdb_kernel_submit_changes:
 
     ret
 
+; xmm0 - scale
+mdb_kernel_set_scale:
+    vmovss [scale_ss],xmm0
+    ret
+
+; xmm0 - shift_x
+; xmm1 - shift_y
+mdb_kernel_set_shift:
+    vmovss [shift_x_ss],xmm0
+    vmovss [shift_y_ss],xmm1
+    ret
+
+; edi - bailout
+mdb_kernel_set_bailout:
+    mov [bailout_si],edi
+    ret
+
+
+mdb_kernel_init:
+    call mdb_kernel_submit_changes
+    xor rax,rax
+    ret
+
+mdb_kernel_shutdown:
+    xor rax,rax
+    ret
+
 ; edi = width
 ; esi = height
 mdb_kernel_set_size:
@@ -531,23 +543,9 @@ mdb_kernel_set_size:
     vmovss [width_r_ss], xmm0
     vmovss [height_r_ss],xmm1
 
-    ret
+    call mdb_kernel_submit_changes
 
-; xmm0 - scale
-mdb_kernel_set_scale:
-    vmovss [scale_ss],xmm0
-    ret
-
-; xmm0 - shift_x
-; xmm1 - shift_y
-mdb_kernel_set_shift:
-    vmovss [shift_x_ss],xmm0
-    vmovss [shift_y_ss],xmm1
-    ret
-
-; edi - bailout
-mdb_kernel_set_bailout:
-    mov [bailout_si],edi
+    xor rax,rax
     ret
 
 ; rdi - pointer to surface structure
@@ -555,6 +553,11 @@ mdb_kernel_set_surface:
     mov [surface_ptr],rdi
     ret
 
+; rdi - type
+; rsi - pointer to event
+mdb_kernel_event_handler:
+    xor rax,rax
+    ret
 
 ; return tsc in rax
 sample_rdtsc:

@@ -20,10 +20,11 @@ enum
 
 struct surface
 {
+        float* data;
+
         uint32_t width;
         uint32_t height;
 
-        float* data;
         int data_need_free;
 };
 

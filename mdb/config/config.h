@@ -62,7 +62,7 @@
 /* Enable scheduler profiling
  * This records various performance timers and shows statistics on exit
  */
-#define CONFIG_RSCHED_PROFILE 1
+/* #undef CONFIG_RSCHED_PROFILE */
 
 /* ---------------------------------------------------
  * Kernel parameters
@@ -106,7 +106,7 @@
  * and CPU with AVX2,FMA support.
  * It also requares external kernel support.
  */
-/* #undef CONFIG_MDB_AVX_FMA_ASM_KERNEL */
+#define CONFIG_MDB_AVX_FMA_ASM_KERNEL 1
 
 /* ---------------------------------------------------
  * Render parameters
