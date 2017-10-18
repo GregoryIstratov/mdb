@@ -6,6 +6,8 @@
 #include "timer.h"
 #include "log.h"
 
+#include <inttypes.h>
+
 static inline
 size_t HIST_BOUNDL(const struct perf_hist* hist)
 {
@@ -135,7 +137,7 @@ void perf_hist_print(struct perf_hist* hist)
         perf_format_time(hist->bin[HIST_BOUNDL(hist)].min, tm0, 16);
         v = hist->bin[HIST_BOUNDL(hist)].data;
 
-        LOG_SAY("[**][xxxx xx < %s]: %lu", tm0, v);
+        LOG_SAY("[**][xxxx xx < %s]: %" PRIu64, tm0, v);
 
         for(i = 0; i < hist->size; ++i)
         {
@@ -144,11 +146,11 @@ void perf_hist_print(struct perf_hist* hist)
 
                 v = hist->bin[i].data;
 
-                LOG_SAY("[%02lu][%s - %s]: %lu", i, tm0, tm1, v);
+                LOG_SAY("[%02" PRIu64 "][%s - %s]: %" PRIu64, i, tm0, tm1, v);
         }
 
         perf_format_time(hist->bin[HIST_BOUNDR(hist)].min, tm0, 16);
         v = hist->bin[HIST_BOUNDR(hist)].data;
 
-        LOG_SAY("[**][xxxx xx > %s]: %lu", tm0, v);
+        LOG_SAY("[**][xxxx xx > %s]: %" PRIu64, tm0, v);
 }

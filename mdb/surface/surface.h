@@ -46,10 +46,39 @@ void surface_set_buffer(struct surface* surf, void* buffer);
  * If x + n >= width, pixels are not fitting this will be discarded.
  * If y >= height all pixels will be discarded.
  */
-__export_symbol
-__hot
+static inline
 void surface_set_pixels(struct surface* surf, uint32_t x, uint32_t y,
-                        uint32_t n, void* pix_data);
+                        uint32_t n, void* pix_data)
+{
+        /* This is a temporary implementation only with supporting
+         * float 32 buffers
+         */
+
+        uint32_t height = surf->height;
+        uint32_t width  = surf->width;
+        float* pix_buffer = surf->data;
+
+        size_t idx_y, idx;
+        uint32_t xi, k;
+
+        if(unlikely(y >= height))
+                return;
+
+        idx_y = y * width;
+        for (k = 0; k < n; ++k)
+        {
+                xi = x + k;
+                idx = idx_y + xi;
+                if (likely(xi < width))
+                        pix_buffer[idx] = ((float*)pix_data)[k];
+
+                else
+                        break;
+
+        }
+
+
+}
 
 /* Save the surface to Radiance HDR RGBE image format.
  * https://en.wikipedia.org/wiki/RGBE_image_format

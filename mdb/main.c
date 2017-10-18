@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <stdbool.h>
-#include <sys/sysinfo.h>
+
 
 #include <mdb/tools/args_parser.h>
 #include <mdb/kernel/mdb_kernel.h>
@@ -16,6 +16,7 @@
 #include <mdb/tools/cpu_features.h>
 #include <mdb/tools/error_codes.h>
 #include <mdb/tools/timer.h>
+#include <mdb/arch/nproc.h>
 
 static inline
 const char* mode_str(int mode)
@@ -37,14 +38,12 @@ const char* mode_str(int mode)
 static inline
 uint32_t get_nthreads(void)
 {
-        int nproc = get_nprocs_conf();
-        int nproc_avail = get_nprocs();
+        int np = nproc_active();
 
-        LOG_VINFO(LOG_VERBOSE1, "This system has %d processors configured "
-                 "and %d processors available.",
-                 nproc, nproc_avail);
+        LOG_VINFO(LOG_VERBOSE1, "This system has %d processors available.",
+                  np);
 
-        return nproc_avail;
+        return np;
 }
 
 static

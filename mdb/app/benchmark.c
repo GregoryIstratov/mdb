@@ -123,7 +123,7 @@ void benchmark_print_summary(struct benchmark* bench)
 
         uint64_t block_count = atomic_load(&bench->block_count);
 
-        PARAM_INFO("Total blocks", "%lu", block_count);
+        PARAM_INFO("Total blocks", "%du", (unsigned int)block_count);
         PARAM_INFO("Avg block time", "%f ms", (block_ms / block_count));
         PARAM_INFO("Min block time", "%f ms", min_block_ms);
         PARAM_INFO("Max block time", "%f ms", max_block_ms);

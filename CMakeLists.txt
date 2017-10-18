@@ -17,7 +17,17 @@ set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DDEBUG -g -Og")
 #set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -fsanitize=undefined")
 #set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -fsanitize=address")
 #set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -fsanitize=thread")
-set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O3 -DNDEBUG -s -flto -ffast-math -funroll-loops -ftree-vectorize")
+
+set(CFLAGS_RELEASE "-O3 -DNDEBUG -s -ffast-math -funroll-loops -ftree-vectorize")
+
+#LTO works not properly on MinGW.
+if(!WIN32)
+    set(CFLAGS_RELEASE "${CFLAGS_RELEASE} -flto")
+endif()
+
+
+set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} ${CFLAGS_RELEASE}")
+
 set(CMAKE_C_FLAGS_RELWITHDEBINFO  "${CMAKE_C_FLAGS_RELWITHDEBINFO} -O3 -DNDEBUG -g -flto -ffast-math -funroll-loops -ftree-vectorize")
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
@@ -43,17 +53,25 @@ set(SOURCE_FILES
         mdb/kernel/mdb_kernel.c
         mdb/kernel/mdb_kernel.h
         mdb/kernel/mdb_kernel_meta.h
+        mdb/kernel/mdb_kernel_event.h
         mdb/tools/cpu_features.c
         mdb/tools/cpu_features.h
         mdb/surface/surface.c
         mdb/surface/surface.h
         mdb/tools/error_codes.h
-        mdb/kernel/mdb_kernel_event.h
-
-        #mdb/tools/cpu_feature_cpuid.c
-        #mdb/tools/cpu_feature_cpuid.h
-
-        mdb/tools/hist.c mdb/tools/hist.h mdb/sched/rsched_queue.c mdb/sched/rsched_queue.h mdb/sched/rsched_worker.c mdb/sched/rsched_worker.h mdb/sched/rsched_common.h mdb/sched/rsched_profile.c mdb/sched/rsched_profile.h)
+        mdb/tools/hist.c
+        mdb/tools/hist.h
+        mdb/sched/rsched_queue.c
+        mdb/sched/rsched_queue.h
+        mdb/sched/rsched_worker.c
+        mdb/sched/rsched_worker.h
+        mdb/sched/rsched_common.h
+        mdb/sched/rsched_profile.c
+        mdb/sched/rsched_profile.h
+        mdb/arch/mem.h
+        mdb/arch/nproc.c
+        mdb/arch/nproc.h
+        )
 
 
 if(CONFIG_OGL_RENDER)
@@ -87,7 +105,7 @@ add_executable(mdb ${SOURCE_FILES})
 target_link_libraries(mdb pthread dl m)
 
 if(CONFIG_OGL_RENDER)
-    target_link_libraries(mdb glfw)
+    target_link_libraries(mdb glfw3)
 
     file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/shaders)
     add_custom_command(

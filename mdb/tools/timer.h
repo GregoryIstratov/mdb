@@ -5,6 +5,7 @@
 #include <time.h>
 #include <mdb/tools/compiler.h>
 #include <stdio.h>
+#include <inttypes.h>
 
 #define NS_IN_SEC UINT64_C(1000000000)
 #define NS_IN_MS  UINT64_C(1000000)
@@ -107,17 +108,17 @@ void perf_format_time(uint64_t ns, char* buf, size_t sz)
 {
         if(ns < 10 * NS_IN_MCS)
         {
-                snprintf(buf, sz, "%04lu ns", ns);
+                snprintf(buf, sz, "%" PRId64 " ns", ns);
         }
         else
         if(ns < 10 * NS_IN_MS)
         {
-                snprintf(buf, sz, "%04lu mc", ns / NS_IN_MCS);
+                snprintf(buf, sz, "%04" PRId64 " mc", ns / NS_IN_MCS);
         }
         else
         if(ns < 10 * NS_IN_SEC)
         {
-                snprintf(buf, sz, "%04lu ms", ns / NS_IN_MS);
+                snprintf(buf, sz, "%04" PRId64 " ms", ns / NS_IN_MS);
         }
         else
         {

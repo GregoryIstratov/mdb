@@ -1,4 +1,5 @@
 #include "mdb_kernel_common.h"
+#include <klog.h>
 
 static uint32_t bailout_get_mod(uint32_t bailout)
 {

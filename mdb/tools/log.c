@@ -4,9 +4,15 @@
 #include <stdarg.h>
 #include <string.h>
 #include <unistd.h>
-#include <sys/syscall.h>
+
 #include <errno.h>
 #include <stdbool.h>
+#include <time.h>
+#include <stdint.h>
+
+#if defined(__unix__)
+#include <sys/syscall.h>
+#endif
 
 #include "log.h"
 #include "compiler.h"
@@ -20,27 +26,26 @@
 #define LOG_WHT   "\x1B[37m"
 #define LOG_RESET "\x1B[0m"
 
-static int loglevel = LOGLEVEL_DEBUG;
-static int verb_lvl = LOG_NO_VERBOSE;
-static FILE* log_sink = NULL;
-static pthread_mutex_t log_mtx;
+struct log_context* __log_ctx;
 
 void log_init(int loglvl, int _verb_lvl, const char* filename)
 {
-        loglevel = loglvl;
-        verb_lvl = _verb_lvl;
+        __log_ctx = calloc(1, sizeof(*__log_ctx));
+
+        __log_ctx->level = loglvl;
+        __log_ctx->verb  = _verb_lvl;
 
         if(IS_ENABLED(CONFIG_LOG_MULTITHREADING))
-                pthread_mutex_init(&log_mtx, NULL);
+                pthread_mutex_init(&__log_ctx->mtx, NULL);
 
         if(!filename)
         {
-                log_sink = stdout;
+                __log_ctx->sink = stdout;
                 return;
         }
 
-        log_sink = fopen(filename, "a");
-        if(!log_sink)
+        __log_ctx->sink = fopen(filename, "a");
+        if(!__log_ctx->sink)
         {
                 fprintf(stderr,
                         "[log_init] Failed to open file '%s' for logging: %s\n",
@@ -48,17 +53,25 @@ void log_init(int loglvl, int _verb_lvl, const char* filename)
 
                 fprintf(stderr, "[log_init] Falling back to stdout log sink\n");
 
-                log_sink = stdout;
+                __log_ctx->sink = stdout;
         }
 }
 
 void log_shutdown()
 {
-        if (log_sink != stdout)
-                fclose(log_sink);
+        if (__log_ctx->sink != stdout)
+                fclose(__log_ctx->sink);
 
         if(IS_ENABLED(CONFIG_LOG_MULTITHREADING))
-                pthread_mutex_destroy(&log_mtx);
+                pthread_mutex_destroy(&__log_ctx->mtx);
+
+
+        free(__log_ctx);
+}
+
+void log_set_context(struct log_context* log)
+{
+        __log_ctx = log;
 }
 
 static inline
@@ -134,123 +147,129 @@ void _log_append_datetime(FILE* sink)
 static inline
 void _log_append_tid(FILE* sink)
 {
+#if defined(__unix__)
         pid_t tid = (pid_t)syscall(__NR_gettid);
         fprintf(sink, "[0x%08X]", tid);
+#else
+        unsigned int tid = (unsigned int)pthread_self();
+        fprintf(sink, "[0x%08X]", tid);
+#endif
 }
 
-static inline
-void __log(const char* file, int line, const char* fun, int lvl, bool host,
+void __log(struct log_context* log, const char* file, int line,
+           const char* fun, int lvl, bool host,
            const char* fmt, va_list args)
 {
-        if (lvl > loglevel)
+        if (lvl > log->level)
                 return;
 
         if(IS_ENABLED(CONFIG_LOG_MULTITHREADING))
-                pthread_mutex_lock(&log_mtx);
+                pthread_mutex_lock(&log->mtx);
 
 
         if(IS_ENABLED(CONFIG_LOG_COLOR))
-                fprintf(log_sink, "%s", log_color(lvl));
+                fprintf(log->sink, "%s", log_color(lvl));
 
         if(IS_ENABLED(CONFIG_LOG_TIME) || IS_ENABLED(CONFIG_LOG_DATE))
-                _log_append_datetime(log_sink);
+                _log_append_datetime(log->sink);
 
         if(IS_ENABLED(CONFIG_LOG_THREAD))
-                _log_append_tid(log_sink);
+                _log_append_tid(log->sink);
 
-        fprintf(log_sink, host ? "[HOST]" : "[KERN]");
-        fprintf(log_sink, "[%s]", loglevel_s(lvl));
+        fprintf(log->sink, host ? "[HOST]" : "[KERN]");
+        fprintf(log->sink, "[%s]", loglevel_s(lvl));
 
         if(IS_ENABLED(CONFIG_LOG_FUNC))
-                fprintf(log_sink, "[%s]: ", fun);
+                fprintf(log->sink, "[%s]: ", fun);
         else
-                fprintf(log_sink, ": ");
+                fprintf(log->sink, ": ");
 
-        vfprintf(log_sink, fmt, args);
+        vfprintf(log->sink, fmt, args);
 
         if(IS_ENABLED(CONFIG_LOG_COLOR))
-                fprintf(log_sink, "%s", LOG_RESET);
+                fprintf(log->sink, "%s", LOG_RESET);
 
         if(IS_ENABLED(CONFIG_LOG_PATH))
-                fprintf(log_sink, " - %s:%i", file, line);
+                fprintf(log->sink, " - %s:%i", file, line);
 
-        fprintf(log_sink, "\n");
-        fflush(log_sink);
+        fprintf(log->sink, "\n");
+        fflush(log->sink);
 
         if(IS_ENABLED(CONFIG_LOG_MULTITHREADING))
-                pthread_mutex_unlock(&log_mtx);
+                pthread_mutex_unlock(&log->mtx);
 
 }
 
-void _log(const char* file, int line, const char* fun,
+void _log(struct log_context* log, const char* file, int line, const char* fun,
           int lvl, bool host, const char* fmt, ...)
 {
         va_list args;
         va_start(args, fmt);
-        __log(file, line, fun, lvl, host, fmt, args);
+        __log(log, file, line, fun, lvl, host, fmt, args);
         va_end(args);
 }
 
-void _log_verbose(const char* file, int line, const char* fun,
-                  int lvl, int verbose, bool host, const char* fmt, ...)
+void _log_verbose(struct log_context* log, const char* file, int line,
+                  const char* fun, int lvl, int verbose, bool host,
+                  const char* fmt, ...)
 {
         va_list args;
 
-        if(verb_lvl < verbose)
+        if(log->verb < verbose)
                 return;
 
         va_start(args, fmt);
-        __log(file, line, fun, lvl, host, fmt, args);
+        __log(log, file, line, fun, lvl, host, fmt, args);
         va_end(args);
 
 }
 
-static inline
-void __log_user_info(bool host, const char* label,
+void __log_user_info(struct log_context* log, bool host, const char* label,
                      const char* fmt, va_list args)
 {
 
         if(IS_ENABLED(CONFIG_LOG_MULTITHREADING))
-                pthread_mutex_lock(&log_mtx);
+                pthread_mutex_lock(&log->mtx);
 
         if(IS_ENABLED(CONFIG_LOG_COLOR))
-                fprintf(log_sink, "%s", log_color(LOG_INFO));
+                fprintf(log->sink, "%s", log_color(LOG_INFO));
 
         if(IS_ENABLED(CONFIG_LOG_TIME) || IS_ENABLED(CONFIG_LOG_DATE))
-                _log_append_datetime(log_sink);
+                _log_append_datetime(log->sink);
 
-        fprintf(log_sink, host ? "[HOST]" : "[KERN]");
-        fprintf(log_sink, "[%s]: ", loglevel_s(LOG_INFO));
+        fprintf(log->sink, host ? "[HOST]" : "[KERN]");
+        fprintf(log->sink, "[%s]: ", loglevel_s(LOG_INFO));
 
         if(IS_ENABLED(CONFIG_LOG_COLOR))
-                fprintf(log_sink, "%s", LOG_RESET);
+                fprintf(log->sink, "%s", LOG_RESET);
 
         if(label)
-                fprintf(log_sink, "%-20s: ", label);
+                fprintf(log->sink, "%-20s: ", label);
 
-        vfprintf(log_sink, fmt, args);
+        vfprintf(log->sink, fmt, args);
 
-        fprintf(log_sink, "\n");
-        fflush(log_sink);
+        fprintf(log->sink, "\n");
+        fflush(log->sink);
 
         if(IS_ENABLED(CONFIG_LOG_MULTITHREADING))
-                pthread_mutex_unlock(&log_mtx);
+                pthread_mutex_unlock(&log->mtx);
 }
 
-void _log_say(bool host, const char* fmt, ...)
+void _log_say(struct log_context* log, bool host, const char* fmt, ...)
 {
         va_list args;
         va_start(args, fmt);
-        __log_user_info(host, NULL, fmt, args);
+        __log_user_info(log, host, NULL, fmt, args);
         va_end(args);
 }
 
 
-void _log_param(bool host, const char* label, const char* fmt, ...)
+void _log_param(struct log_context* log, bool host, const char* label,
+                const char* fmt, ...)
 {
         va_list args;
 
         va_start(args, fmt);
-        __log_user_info(host, label, fmt, args);
+        __log_user_info(log, host, label, fmt, args);
         va_end(args);
 }

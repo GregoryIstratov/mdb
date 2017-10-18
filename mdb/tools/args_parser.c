@@ -48,13 +48,23 @@
 
    An options vector should be terminated by an option with all fields zero. */
 
+#include <stdlib.h>
+#include <string.h>
 #include "args_parser.h"
+#include "compiler.h"
+
+/* Argp is not supporting on MinGW.
+ * This is a temporary workaround.
+ * The only way is disable it, otherwise the program could not build.
+ */
+#if !((defined _WIN32 || defined __WIN32__) && ! defined __CYGWIN__)
+
 #include "compiler.h"
 #include "timer.h"
 
-#include <stdlib.h>
+
 #include <argp.h>
-#include <string.h>
+
 #include <stdarg.h>
 #include <stdio.h>
 #include <dirent.h>
@@ -809,3 +819,33 @@ void args_parse(int argc, char** argv, struct arguments* arguments)
 
         //debug_arguments(arguments);
 }
+
+#else
+#warning "Argp is not supporting on MinGW. Arguments parsing system is disabled."
+
+void args_parse(int argc, char** argv, struct arguments* arguments)
+{
+        UNUSED_PARAM(argc);
+        UNUSED_PARAM(argv);
+
+        memset(arguments, 0, sizeof(*arguments));
+
+        /* Default values. */
+        arguments->width         = 1024;
+        arguments->height        = 1024;
+        arguments->bailout       = 256;
+        arguments->block_size_x  = 32;
+        arguments->block_size_y  = 32;
+        arguments->kernel_name   = "mdb_avx2_fma";
+        arguments->threads       = -1;
+        arguments->mode          = MODE_RENDER;
+        arguments->output_file   = "mandelbrot.hdr";
+        arguments->benchmark_runs= 100;
+        arguments->shader_colors = 1;
+#if !defined(NDEBUG)
+        arguments->verbose       = 2;
+#endif
+
+}
+
+#endif

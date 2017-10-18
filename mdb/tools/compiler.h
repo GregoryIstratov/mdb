@@ -13,6 +13,7 @@
 #define __cold	__attribute__((__cold__))
 #define __hot	__attribute__((__hot__))
 
+#undef __aligned
 #define __aligned(x) __attribute__((aligned(x)))
 
 /* Ideally the value should be set depending on the arch.

@@ -3,11 +3,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
-
 #include <mdb/tools/log.h>
 #include <mdb/tools/compiler.h>
 #include <mdb/tools/image_hdr.h>
 #include <mdb/tools/error_codes.h>
+#include <mdb/arch/mem.h>
+
 
 static
 int surface_create_buffer(void** pbuffer, uint32_t width, uint32_t height,
@@ -18,22 +19,15 @@ int surface_create_buffer(void** pbuffer, uint32_t width, uint32_t height,
         size_t align    = 4096; /* force to allocate it on a new mem page */
 
         float* surface;
-        int res;
 
         /* At this moment the only supported type is float32
          * so we omit type param */
         UNUSED_PARAM(type);
 
-        res = posix_memalign((void**)&surface, align, mem_size);
-        if (res)
+        surface = malloc_aligned(mem_size, align);
+        if(surface == NULL)
         {
-                if (ENOMEM == res)
-                        LOG_ERROR("There was insufficient memory available "
-                                          "to satisfy the request.");
-                if (EINVAL == res)
-                        LOG_ERROR("Alignment is not a power of two multiple "
-                                          "of sizeof (void *).");
-
+                LOG_ERROR("Failed to allocate memory");
                 return MDB_FAIL;
         }
 
@@ -86,7 +80,7 @@ void surface_destroy(struct surface* surf)
 
         if(surf->data_need_free)
         {
-                free(surf->data);
+                free_aligned(surf->data);
         }
 
         free(surf);
@@ -97,39 +91,7 @@ void surface_set_buffer(struct surface* surf, void* buffer)
         surf->data = (float*)buffer;
 }
 
-void surface_set_pixels(struct surface* surf, uint32_t x, uint32_t y,
-                        uint32_t n, void* pix_data)
-{
-        /* This is a temporary implementation only with supporting
-         * float 32 buffers
-         */
 
-        uint32_t height = surf->height;
-        uint32_t width  = surf->width;
-        float* pix_buffer = surf->data;
-
-        size_t idx_y, idx;
-        uint32_t xi, k;
-
-        if(likely(y < height))
-        {
-                idx_y = y * width;
-                for (k = 0; k < n; ++k)
-                {
-                        xi = x + k;
-                        idx = idx_y + xi;
-                        if (likely(xi < width))
-                        {
-                                pix_buffer[idx] = ((float*)pix_data)[k];
-                        }
-                        else
-                        {
-                                break;
-                        }
-                }
-
-        }
-}
 
 int surface_save_image_hdr(struct surface* surf, const char* filename)
 {

@@ -13,19 +13,29 @@
 
 static int mdb_kernel_init(struct mdb_kernel* mdb);
 
-static int mdb_kernel_load(struct mdb_kernel* mdb, const char* kernel_name)
+typedef void (*register_log_context_t)(struct log_context* log);
+
+static inline
+bool load_sym(void* handle, void** dst, const char* sym)
 {
-#define MDB_KRN_RETURN_IF_ERR()  \
-    if ((error = dlerror()) != NULL) \
-    { \
-        LOG_ERROR("Error on symbol resolving: %s", error); \
-        dlclose(handle); \
-        return MDB_FAIL; \
+    char* error;
+
+    *dst = dlsym(handle, sym);
+    if ((error = dlerror()) != NULL)
+    {
+        LOG_ERROR("Error on symbol resolving: %s", error);
+        dlclose(handle);
+        return false;
     }
 
+    return true;
+}
+
+static int mdb_kernel_load(struct mdb_kernel* mdb, const char* kernel_name)
+{
     char filename[1024];
     void* handle;
-    char* error;
+    register_log_context_t register_log_context;
 
     if(!kernel_name)
     {
@@ -33,7 +43,7 @@ static int mdb_kernel_load(struct mdb_kernel* mdb, const char* kernel_name)
         return MDB_FAIL;
     }
 
-    snprintf(filename, 1024, "./modules/kernels/%s.so", kernel_name);
+    snprintf(filename, 1024, "./modules/kernels/%s.kern", kernel_name);
 
     LOG_SAY("Loading kernel: %s ...", filename);
 
@@ -47,40 +57,47 @@ static int mdb_kernel_load(struct mdb_kernel* mdb, const char* kernel_name)
     /* Clear any existing error */
     dlerror();
 
-    mdb->init_fun = dlsym(handle, "mdb_kernel_init");
+    if(!load_sym(handle, (void**)&mdb->init_fun,
+                 "mdb_kernel_init"))
+        return MDB_FAIL;
 
-    MDB_KRN_RETURN_IF_ERR();
-
-    mdb->shutdown_fun = dlsym(handle, "mdb_kernel_shutdown");
-
-    MDB_KRN_RETURN_IF_ERR();
-
-    mdb->cpu_features_fun = dlsym(handle, "mdb_kernel_cpu_features");
-
-    MDB_KRN_RETURN_IF_ERR();
-
-    mdb->metadata_query_fun = dlsym(handle, "mdb_kernel_metadata_query");
-
-    MDB_KRN_RETURN_IF_ERR();
-
-    mdb->event_handler_fun = dlsym(handle, "mdb_kernel_event_handler");
-
-    MDB_KRN_RETURN_IF_ERR();
-
-    mdb->block_fun = dlsym(handle, "mdb_kernel_process_block");
-
-    MDB_KRN_RETURN_IF_ERR();
-
-    mdb->set_size_fun = dlsym(handle, "mdb_kernel_set_size");
-
-    MDB_KRN_RETURN_IF_ERR();
-
-    mdb->set_surface_fun = dlsym(handle, "mdb_kernel_set_surface");
-
-    MDB_KRN_RETURN_IF_ERR();
+    if(!load_sym(handle, (void**)&mdb->shutdown_fun,
+                 "mdb_kernel_shutdown"))
+        return MDB_FAIL;
 
 
-#undef MDB_KRN_RETURN_IF_ERR
+    if(!load_sym(handle, (void**)&mdb->cpu_features_fun,
+                 "mdb_kernel_cpu_features"))
+        return MDB_FAIL;
+
+
+    if(!load_sym(handle, (void**)&mdb->metadata_query_fun,
+                 "mdb_kernel_metadata_query"))
+        return MDB_FAIL;
+
+
+    if(!load_sym(handle, (void**)&mdb->event_handler_fun,
+                 "mdb_kernel_event_handler"))
+        return MDB_FAIL;
+
+    if(!load_sym(handle, (void**)&mdb->block_fun,
+                 "mdb_kernel_process_block"))
+        return MDB_FAIL;
+
+    if(!load_sym(handle, (void**)&mdb->set_size_fun,
+                 "mdb_kernel_set_size"))
+        return MDB_FAIL;
+
+
+    if(!load_sym(handle, (void**)&mdb->set_surface_fun,
+                 "mdb_kernel_set_surface"))
+        return MDB_FAIL;
+
+    if(!load_sym(handle, (void**)&register_log_context,
+                 "register_log_context"))
+        return MDB_FAIL;
+
+    register_log_context(__log_ctx);
 
     mdb->dl_handle = handle;
     mdb->state     = MDB_KRN_LOADED;
@@ -95,7 +112,7 @@ static void mdb_kernel_log_info(struct mdb_kernel* mdb)
     char buff[256];
     memset(buff, 0, 256);
 
-    LOG_SAY("==External kernel metadata info==");
+    LOG_SAY("== Kernel metadata info ==");
 
     mdb->metadata_query_fun(MDB_KERNEL_META_NAME, buff, 256);
     PARAM_INFO("Name", "%s", buff);

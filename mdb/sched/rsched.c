@@ -87,6 +87,7 @@ shutdown_ret_fail:
 static
 int bind_thread_to_cpu(pthread_t tid, uint32_t cpu_id)
 {
+#if defined(__unix__)
         cpu_set_t cpu;
         int ret;
 
@@ -102,7 +103,14 @@ int bind_thread_to_cpu(pthread_t tid, uint32_t cpu_id)
         }
 
         return MDB_SUCCESS;
+#else
+#warning "Pthread doesn't support setting affinity on non-unix hosts"
 
+        UNUSED_PARAM(tid);
+        UNUSED_PARAM(cpu_id);
+
+        return MDB_FAIL;
+#endif
 }
 
 int rsched_tune_thread_affinity(struct rsched* sched)

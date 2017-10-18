@@ -153,7 +153,6 @@ int render_run(struct rsched* sched, struct mdb_kernel* kernel,
 
         return MDB_SUCCESS;
 #else
-        UNUSED_PARAM(render_control_keys);
     UNUSED_PARAM(color_enabled);
 
     LOG_ERROR("OGL Render disabled at the build time.");

@@ -49,9 +49,10 @@ function(add_kernel kname kfiles)
 
     #message("Kernel [${kname}] sources: ${ksources}")
 
-    add_library(${kname} MODULE ${ksources} kernel_module.c)
+    add_library(${kname} MODULE ${ksources} kernel_module.c klog.c ../tools/log.c)
 
     set_target_properties(${kname} PROPERTIES PREFIX "")
+    set_target_properties(${kname} PROPERTIES SUFFIX ".kern")
 
     set_target_properties(${kname}
             PROPERTIES
