@@ -33,34 +33,42 @@ static int event_keyboard(struct mdb_event_keyboard* event)
                 {
                 case MDB_KEY_1:
                         mdb.scale *= 1.1;
+                        KLOG_SAY("scale %f", mdb.scale);
                         break;
 
                 case MDB_KEY_2:
                         mdb.scale *= 0.9;
+                        KLOG_SAY("scale %f", mdb.scale);
                         break;
 
                 case MDB_KEY_3:
                         mdb.bailout -= bailout_get_mod(mdb.bailout);
+                        KLOG_SAY("bailout %d", mdb.bailout);
                         break;
 
                 case MDB_KEY_4:
                         mdb.bailout += bailout_get_mod(mdb.bailout);
+                        KLOG_SAY("bailout %d", mdb.bailout);
                         break;
 
                 case MDB_KEY_RIGHT:
                         mdb.shift_x += 0.1 * mdb.scale;
+                        KLOG_SAY("shift x %f", mdb.shift_x);
                         break;
 
                 case MDB_KEY_LEFT:
                         mdb.shift_x -= 0.1 * mdb.scale;
+                        KLOG_SAY("shift x %f", mdb.shift_x);
                         break;
 
                 case MDB_KEY_UP:
                         mdb.shift_y += 0.1 * mdb.scale;
+                        KLOG_SAY("shift y %f", mdb.shift_y);
                         break;
 
                 case MDB_KEY_DOWN:
                         mdb.shift_y -= 0.1 * mdb.scale;
+                        KLOG_SAY("shift y %f", mdb.shift_y);
                         break;
 
                 case MDB_KEY_F1:

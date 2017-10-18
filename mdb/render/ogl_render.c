@@ -92,13 +92,13 @@ void key_callback(GLFWwindow* window, int key, int scancode,
                 switch(key)
                 {
                 case GLFW_KEY_5:
-                        g_rend->exposure *= 0.9;
-                        PARAM_INFO("exposure","%f", g_rend->exposure);
+                        g_rend->exposure *= 0.95;
+                        LOG_SAY("exposure %f", g_rend->exposure);
                         return;
 
                 case GLFW_KEY_6:
-                        g_rend->exposure *= 1.1;
-                        PARAM_INFO("exposure","%f", g_rend->exposure);
+                        g_rend->exposure *= 1.05;
+                        LOG_SAY("exposure %f", g_rend->exposure);
                         return;
 
                 default:

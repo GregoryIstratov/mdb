@@ -37,7 +37,7 @@
                 LOG_TRACE, false, (fmt), ##__VA_ARGS__)
 #endif
 
-#define KLOG_SAY(fmt, ...) _log_say(&__log_ctx, false, (fmt), ##__VA_ARGS__)
+#define KLOG_SAY(fmt, ...) _log_say(__log_ctx, false, (fmt), ##__VA_ARGS__)
 #define KPARAM_INFO(label, fmt, ...) \
         _log_param(__log_ctx, false, (label), (fmt), ##__VA_ARGS__)
 
