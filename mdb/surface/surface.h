@@ -2,6 +2,7 @@
 
 #include <stdint.h>
 #include <mdb/tools/compiler.h>
+#include <stddef.h>
 
 enum
 {

@@ -105,7 +105,7 @@ add_executable(mdb ${SOURCE_FILES})
 target_link_libraries(mdb pthread dl m)
 
 if(CONFIG_OGL_RENDER)
-    target_link_libraries(mdb glfw3)
+    target_link_libraries(mdb glfw)
 
     file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/shaders)
     add_custom_command(

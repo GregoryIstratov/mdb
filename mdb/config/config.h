@@ -106,7 +106,7 @@
  * and CPU with AVX2,FMA support.
  * It also requares external kernel support.
  */
-#define CONFIG_MDB_AVX_FMA_ASM_KERNEL 1
+/* #undef CONFIG_MDB_AVX_FMA_ASM_KERNEL */
 
 /* ---------------------------------------------------
  * Render parameters
