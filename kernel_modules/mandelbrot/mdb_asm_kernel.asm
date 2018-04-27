@@ -677,7 +677,6 @@ mdb_kernel_process_block:
     vbroadcastss v_cx,v_cx_l
     vaddps v_cx,v_cx,v_iter
 
-
     vfmadd213ps v_cx,v_transpose_x,v_offset_x
 
     vmovaps v_zx,v_cx

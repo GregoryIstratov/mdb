@@ -91,6 +91,13 @@ if(${CONFIG_MDB_NATIVE_KERNEL})
             mandelbrot/mdb_kernel_common.h
             )
     target_compile_options(mdb_native PRIVATE -march=native)
+
+    add_kernel(mdb_native_vec
+            mandelbrot/mdb_native_vec.c
+            mandelbrot/mdb_kernel_common.c
+            mandelbrot/mdb_kernel_common.h
+            )
+    target_compile_options(mdb_native_vec PRIVATE -m64 -mtune=generic)
 endif()
 
 add_kernel(mdb_generic
