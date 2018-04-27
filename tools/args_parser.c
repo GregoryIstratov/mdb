@@ -55,7 +55,7 @@
 
 /* Argp is not supporting on MinGW.
  * This is a temporary workaround.
- * The only way is disable it, otherwise the program could not build.
+ * The only way is to disable it, otherwise the program could not build.
  */
 #if !((defined _WIN32 || defined __WIN32__) && ! defined __CYGWIN__)
 
@@ -836,7 +836,7 @@ void args_parse(int argc, char** argv, struct arguments* arguments)
         arguments->bailout       = 256;
         arguments->block_size_x  = 32;
         arguments->block_size_y  = 32;
-        arguments->kernel_name   = "mdb_avx2_fma";
+        arguments->kernel_name   = "mdb_native";
         arguments->threads       = -1;
         arguments->mode          = MODE_RENDER;
         arguments->output_file   = "mandelbrot.hdr";

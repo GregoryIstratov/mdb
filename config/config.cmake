@@ -23,7 +23,7 @@ set(CONFIG_ARG_PARSER_DEBUG Off)
 # Enable colored messages by adding special codes
 # works only in supported terminals
 #
-set(CONFIG_LOG_COLOR On)
+set(CONFIG_LOG_COLOR Off)
 
 # Show time of a log record
 set(CONFIG_LOG_TIME On)

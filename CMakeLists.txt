@@ -12,15 +12,15 @@ configure_file(config/config.h.in config/config.h @ONLY)
 
 set(CMAKE_VERBOSE_MAKEFILE Off)
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D_GNU_SOURCE -std=gnu99 -fPIC -fvisibility=hidden -march=native -Wall -Wextra -Wno-unused-function -Werror=declaration-after-statement")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D_GNU_SOURCE -std=gnu99 -fPIC -fvisibility=hidden  -Wall -Wextra -Wno-unused-function -Werror=declaration-after-statement")
 
-set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DDEBUG -g -Og")
+set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DDEBUG -g -O0")
 #set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -fsanitize=leak")
 #set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -fsanitize=undefined")
 #set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -fsanitize=address")
 #set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -fsanitize=thread")
 
-set(CFLAGS_RELEASE "-DNDEBUG -O3 -s -ffast-math -funroll-loops -ftree-vectorize")
+set(CFLAGS_RELEASE "-DNDEBUG -O3 -s -funroll-loops -ftree-vectorize")
 
 #LTO works not properly on MinGW.
 if(!WIN32)
