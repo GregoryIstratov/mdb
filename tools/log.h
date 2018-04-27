@@ -104,9 +104,3 @@ __attribute__((format(printf, 3, 4)));
 void _log_param(struct log_context* log, bool host,
                 const char* label, const char* fmt, ...)
 __attribute__((format(printf, 4, 5)));
-
-void __log(struct log_context* log, const char* file, int line,
-           const char* fun, int lvl, bool host, const char* fmt, va_list args);
-
-void __log_user_info(struct log_context* log, bool host, const char* label,
-                     const char* fmt, va_list args);

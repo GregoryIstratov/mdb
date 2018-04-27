@@ -1,7 +1,9 @@
 #pragma once
 
 #include <stdint.h>
+#include <stddef.h>
 #include <tools/compiler.h>
+
 
 enum
 {

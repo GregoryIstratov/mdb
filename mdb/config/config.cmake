@@ -106,7 +106,7 @@ set(CONFIG_MDB_NATIVE_KERNEL On)
 # This kernel requires NASM compiller available in /usr/bin/nasm
 # and CPU with AVX2,FMA support.
 #
-set(CONFIG_MDB_AVX_FMA_ASM_KERNEL On)
+set(CONFIG_MDB_AVX_FMA_ASM_KERNEL Off)
 
 #======================================================
 # Render parameters                                   #
